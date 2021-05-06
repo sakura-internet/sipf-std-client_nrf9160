@@ -1,0 +1,15 @@
+identifier: m5stack_nrf9160
+name: M5Stack-NRF9160
+type: mcu
+arch: arm
+toolchain:
+  - gnuarmemb
+  - xtools
+  - zephyr
+ram: 64
+flash: 256
+supported:
+  - i2c
+  - pwm
+  - watchdog
+  - counter

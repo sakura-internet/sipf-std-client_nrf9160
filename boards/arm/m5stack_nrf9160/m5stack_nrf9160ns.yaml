@@ -1,0 +1,14 @@
+identifier: m5stack_nrf9160ns
+name: M5Stack-NRF9160-Non-Secure
+type: mcu
+arch: arm
+toolchain:
+  - gnuarmemb
+  - xtools
+  - zephyr
+ram: 128
+flash: 256
+supported:
+  - i2c
+  - pwm
+  - watchdog

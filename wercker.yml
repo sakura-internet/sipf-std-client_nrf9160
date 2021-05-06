@@ -1,0 +1,48 @@
+box: chibiegg/sdk-nrf:v1.3.0
+
+build:
+  steps:
+    - script:
+      name: echo gcc version
+      code : |
+        arm-none-eabi-gcc -v
+    - script:
+      name: build binalies
+      code: |
+        bash -xe wercker.sh
+        cp -v  dist/nrf91-m5stack-sample.tar.gz  "${WERCKER_OUTPUT_DIR}"
+
+  after-steps:
+    - script:
+      name: install ruby
+      code: |
+        apt-get update
+        apt-get install -y ruby
+        gem install bundler --no-doc -v 1.11.2
+    - wantedly/pretty-slack-notify:
+      webhook_url: $SLACK_WEBHOOK_URL
+      channel: iot-pf-firmware-ci
+
+deploy:
+
+  steps:
+    - script:
+      name: install curl
+      code: |
+        apt-get update
+        apt-get install -y curl
+    - script:
+      name: upload to slack
+      code: |
+        curl -F file=@nrf91-m5stack-sample.tar.gz -F channels=#iot-pf-firmware-ci -F token=$SLACK_TOKEN -F filename=nrf91-m5stack-sample_$WERCKER_GIT_COMMIT.tar.gz https://slack.com/api/files.upload
+
+  after-steps:
+    - script:
+      name: install ruby
+      code: |
+        apt-get update
+        apt-get install -y ruby
+        gem install bundler --no-doc -v 1.11.2
+    - wantedly/pretty-slack-notify:
+      webhook_url: $SLACK_WEBHOOK_URL
+      channel: iot-pf-firmware-ci
