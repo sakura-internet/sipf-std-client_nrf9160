@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2021 Sakura Internet Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef _UART_BROKER_H_
 #define _UART_BROKER_H_
 
@@ -6,7 +11,7 @@
 
 #define UART_LABEL		DT_LABEL(DT_NODELABEL(uart0))
 
-#define UART_TX_BUF_SZ  (128)
+#define UART_TX_BUF_SZ  (256)
 #define UART_RX_BUF_SZ  (256)
 
 int UartBrokerInit(const struct device *uart);
@@ -18,5 +23,5 @@ int UartBrokerGetByte(uint8_t *byte);
 int UartBrokerGet(uint8_t *data, int len);
 
 
-int UartBrokerPrintf(const char *fmt, ...);
+int UartBrokerPuts(const char *msg);
 #endif

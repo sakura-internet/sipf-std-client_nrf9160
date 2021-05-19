@@ -1,4 +1,11 @@
+/*
+ * Copyright (c) 2021 Sakura Internet Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #include <stdint.h>
+#include <string.h>
 
 #include <zephyr.h>
 #include <drivers/uart.h>
@@ -19,14 +26,13 @@ static k_tid_t tid_ub;
 static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 {
     const struct device *uart = (struct device*)dev;
-    int ret;
     uint8_t b;
 
     for (;;) {
         //RX
         while(uart_poll_in(uart, &b) == 0) {
             // UARTでなにか受けたら受信キューに突っ込む
-            k_msgq_put(&msgq_rx, &b, K_NO_WAIT);    //TODO: キューに突っ込めなぁ�きにちも�としなぁ�な
+            k_msgq_put(&msgq_rx, &b, K_NO_WAIT);    //TODO: キューに突っ込めないときどうするか
         }
         //TX
         while(k_msgq_get(&msgq_tx, &b, K_MSEC(1)) == 0) {
@@ -40,7 +46,7 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 /** Interface **/
 int UartBrokerPutByte(uint8_t byte)
 {
-    return k_msgq_put(&msgq_tx, &byte, K_NO_WAIT);;
+    return k_msgq_put(&msgq_tx, &byte, K_MSEC(10));;
 }
 
 int UartBrokerPut(uint8_t *data, int len)
@@ -57,15 +63,9 @@ int UartBrokerPut(uint8_t *data, int len)
     return cnt;
 }
 
-int UartBrokerPrintf(const char *fmt, ...)
+int UartBrokerPuts(const char *msg)
 {
-    static char msg[128];
-    va_list va;
-    
-    va_start(va, fmt);
-    int len = sprintf(msg, fmt, va);
-    va_end(va);
-    return UartBrokerPut((uint8_t*)msg, len);
+    return UartBrokerPut((uint8_t*)msg, strlen(msg));
 }
 
 int UartBrokerGetByte(uint8_t *byte)

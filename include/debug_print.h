@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2021 Sakura Internet Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef DEBUG_PRINT_H
 #define DEBUG_PRINT_H
 
@@ -5,16 +10,23 @@
 
 #ifdef DEBUG_PRINT
 #include "uart_broker.h"
-#define PRINT UartBrokerPrintf
 #define DBG "DBG:"
+#define INFO "INFO:"
 #define WARN "WARN:"
 #define ERR "ERR:"
 
-#define DebugPrint(...) PRINT(__VA_ARGS__)
-#define DBG_FUNCNAME() PRINT(DBG "Run: %s()\r\n", __func__)
+//#define DebugPrint(...) PRINT(__VA_ARGS__)
+#define DebugPrint(...) {                          \
+    static char dp_msg[256];                       \
+    int dp_len = sprintf(dp_msg, __VA_ARGS__);     \
+    UartBrokerPut((uint8_t*)dp_msg, dp_len);       \
+}
 #else
 #define DebugPrint(...)
-#define DBG_FUNCNAME()
+#define DBG
+#define INFO
+#define WARN
+#define ERR
 #endif
 
 #endif
