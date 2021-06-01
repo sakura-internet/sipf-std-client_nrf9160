@@ -14,8 +14,12 @@ project(sipf-nrf91-std)
 
 target_sources(app PRIVATE
     src/main.c
+    src/cmd.c
+    src/cmd_ascii.c
+    src/registers.c
     src/uart_broker.c
     src/sipf/sipf_client_http.c
+    src/fota/fota_http.c
 )
 
 target_include_directories(app PRIVATE

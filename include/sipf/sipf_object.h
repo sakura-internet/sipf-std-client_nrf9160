@@ -3,6 +3,19 @@
 
 #include <stdint.h>
 
+#define OBJ_TYPE_UINT8      0x00
+#define OBJ_TYPE_INT8       0x01
+#define OBJ_TYPE_UINT16     0x02
+#define OBJ_TYPE_INT16      0x03
+#define OBJ_TYPE_UINT32     0x04
+#define OBJ_TYPE_INT32      0x05
+#define OBJ_TYPE_UINT64     0x06
+#define OBJ_TYPE_INT64      0x07
+#define OBJ_TYPE_FLOAT32    0x08
+#define OBJ_TYPE_FLOAT64    0x09
+#define OBJ_TYPE_BIN_BASE64 0x10
+#define OBJ_TYPE_STR_UTF8   0x20
+
 typedef enum {
 	OBJECTS_UP               = 0x00,
 	OBJECTS_UP_RETRY         = 0x01,

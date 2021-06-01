@@ -22,6 +22,12 @@ int UartBrokerPut(uint8_t *data, int len);
 int UartBrokerGetByte(uint8_t *byte);
 int UartBrokerGet(uint8_t *data, int len);
 
-
 int UartBrokerPuts(const char *msg);
+
+#define UartBrokerPrint(...) {              \
+    char msg[80];                           \
+    int len = sprintf(msg, __VA_ARGS__);    \
+    UartBrokerPut((uint8_t*)msg, len);      \
+}
+
 #endif

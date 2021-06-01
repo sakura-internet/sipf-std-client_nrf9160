@@ -35,7 +35,7 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
             k_msgq_put(&msgq_rx, &b, K_NO_WAIT);    //TODO: キューに突っ込めないときどうするか
         }
         //TX
-        while(k_msgq_get(&msgq_tx, &b, K_MSEC(1)) == 0) {
+        while(k_msgq_get(&msgq_tx, &b, K_USEC(10)) == 0) {
             // 送信キューになにか入ってた
             uart_poll_out(uart, b);
         }

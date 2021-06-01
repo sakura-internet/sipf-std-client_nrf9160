@@ -6,7 +6,7 @@
 #ifndef DEBUG_PRINT_H
 #define DEBUG_PRINT_H
 
-#define DEBUG_PRINT
+//#define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
 #include "uart_broker.h"
@@ -17,7 +17,7 @@
 
 //#define DebugPrint(...) PRINT(__VA_ARGS__)
 #define DebugPrint(...) {                          \
-    static char dp_msg[256];                       \
+    char dp_msg[256];                              \
     int dp_len = sprintf(dp_msg, __VA_ARGS__);     \
     UartBrokerPut((uint8_t*)dp_msg, dp_len);       \
 }

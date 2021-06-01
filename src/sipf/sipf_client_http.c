@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
+#include <stdio.h>
 #include <string.h>
 
 #include <net/net_ip.h>
@@ -11,13 +12,12 @@
 #include <net/http_client.h>
 #include <sys/base64.h>
 
+#include "registers.h"
 #include "sipf/sipf_object.h"
 #include "debug_print.h"
 
 #define HTTP_HOST   "133.242.234.182"
 #define HTTP_PORT   8080
-#define HTTP_AUTH   "dXNlcjE6cGFzczE="
-
 #define BUFF_SZ (1024)
 
 static uint8_t req_buff[BUFF_SZ];
@@ -25,21 +25,38 @@ static uint8_t res_buff[BUFF_SZ];
 
 static char req_auth_header[256];
 
-static uint8_t * swap_bytes(const uint8_t *value, uint8_t value_len, uint8_t *out_buff)
-{
-    int max_idx = value_len - 1;
-    for (int i = 0; i < value_len; i++) {
-        out_buff[max_idx - i] = value[i];
-    }
-    return out_buff;
-}
-
 static void response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
 {
     if (resp->data_len > 0) {
         DebugPrint("HTTP response has come\r\n");
         memcpy(user_data, resp, sizeof(struct http_response));
     }
+}
+
+static int createAuthInfoFromRegister(void)
+{
+    char tmp[162];
+    int len, olen;
+
+    if (*REG_00_UN_LEN == 0) {
+        return -1;
+    }
+    if (*REG_00_PW_LEN == 0) {
+        return -1;
+    }
+
+    memcpy(tmp, REG_00_USER_NAME, *REG_00_UN_LEN);
+    tmp[*REG_00_UN_LEN] = ':';
+    memcpy(&tmp[*REG_00_UN_LEN + 1], REG_00_PASSWORD, *REG_00_PW_LEN);
+    len = *REG_00_UN_LEN + *REG_00_PW_LEN + 1;
+
+    strncpy(req_auth_header, "Authorization: BASIC ", 21);
+    if (base64_encode(&req_auth_header[21], 210, &olen, tmp, len) < 0) {
+        return -1;
+    }
+    len = 21 + olen;
+    strncpy(&req_auth_header[len], "\r\n", 2);
+    return len + 2;
 }
 
 static int run_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res)
@@ -75,9 +92,12 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
         return -errno;
     }
 
+    // リクエストを組み立てるよ
+    createAuthInfoFromRegister(); //レジスタから認証情報を生成する
+    DebugPrint("auth: %s\r\n", req_auth_header);
+
     struct http_request req;
     memset(&req, 0, sizeof(req));
-
     const char *headers[] = {
         "Connection: Close\r\n",
         "Content-Type: application/octet-stream\r\n",
@@ -159,20 +179,9 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
     //  OBJ_TAGID
     payload[4] = simp_obj_up->obj.obj_tagid;
     //  OBJ_VALUE
-    if (simp_obj_up->obj.obj_type == 0) {
-        //RAW
-        memcpy(&payload[5], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
-    } else {
-        uint8_t tmp[simp_obj_up->obj.value_len];
-        memcpy(
-            &payload[5], 
-            swap_bytes(simp_obj_up->obj.value, simp_obj_up->obj.value_len, tmp), 
-            simp_obj_up->obj.value_len
-        );
-    }
+    memcpy(&payload[5], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
 
     static struct http_response http_res;
-
     ret = run_http_request(req_buff, sz_packet, &http_res);
 
     DebugPrint(INFO "run_http_request(): %d\r\n", ret);
