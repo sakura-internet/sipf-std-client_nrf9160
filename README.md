@@ -1,4 +1,4 @@
-# nrf91-m5stack-sample
+# sipf-std-client_nrf9160
 
 ## Getting start
 
