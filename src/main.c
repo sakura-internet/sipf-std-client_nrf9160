@@ -16,6 +16,7 @@
 #include <modem/modem_key_mgmt.h>
 #include <modem/modem_info.h>
 
+#include <power/reboot.h>
 #include <drivers/gpio.h>
 
 #include "cmd.h"
@@ -30,6 +31,10 @@
 #define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
 #define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
 #define LED1_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led1), gpios))
+
+#define WAKE_IN_PORT DT_GPIO_LABEL(DT_ALIAS(sw2), gpios)
+#define WAKE_IN_PIN (DT_GPIO_PIN(DT_ALIAS(sw2), gpios))
+#define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
 
 static const struct device *uart_dev;
 
@@ -49,6 +54,39 @@ int at_comms_init(void) {
     return err;
   }
 
+  return 0;
+}
+
+static int wake_in_init(void)
+{
+  const struct device *dev;
+  dev = device_get_binding(WAKE_IN_PORT);
+  if (dev == 0) {
+		DebugPrint("Nordic nRF GPIO driver was not found!\n");
+		return 1;
+  }
+  int ret;
+  ret = gpio_pin_configure(dev, WAKE_IN_PIN, WAKE_IN_FLAGS);
+  DebugPrint("gpio_pin_configure(): %d\r\n", ret);
+
+  return 0; 
+}
+
+static int wake_in_detect(void)
+{
+  static int prev_val = 0;
+  const struct device *dev;
+  dev = device_get_binding(WAKE_IN_PORT);
+
+  int val = gpio_pin_get(dev, WAKE_IN_PIN);
+  
+  if ((prev_val == 1) && (val == 1)) {
+    //リブート
+    UartBrokerPrint("RESET_REQ_DETECT\r\n");
+    sys_reboot(SYS_REBOOT_COLD);
+    return 1;
+  }
+  prev_val = val;
   return 0;
 }
 
@@ -160,6 +198,9 @@ void main(void) {
   // LEDの初期化
   led_init();
 
+  // WAKE_INの初期化
+  wake_in_init();
+
   //モデムの初期化&LTE接続
   err = init_modem_and_lte();
   if (err) {
@@ -175,7 +216,7 @@ void main(void) {
   UartBrokerPuts("+++ Ready +++\r\n");
   for (;;) {
     while (UartBrokerGetByte(&b) == 0) {
-      UartBrokerPutByte(b);
+      //UartBrokerPutByte(b);
       led_toggle();
       
       CmdResponse *cr = CmdParse(b);
@@ -185,6 +226,8 @@ void main(void) {
       }
     }
     k_sleep(K_MSEC(1));
+
+    wake_in_detect();
   }
   time_delta = k_uptime_delta(&time_stamp);
 

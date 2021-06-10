@@ -34,12 +34,11 @@ typedef struct {
     uint16_t                command_payload_size;
 }   SipfObjectCommandHeader;
 
-
 typedef struct {
     uint8_t     obj_type;
     uint8_t     obj_tagid;
+    uint8_t     value_len;
     uint8_t     *value;
-    uint16_t    value_len;
 }   SipfObjectObject;
 
 typedef struct {

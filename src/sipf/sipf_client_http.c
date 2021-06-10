@@ -16,8 +16,17 @@
 #include "sipf/sipf_object.h"
 #include "debug_print.h"
 
-#define HTTP_HOST   "133.242.234.182"
-#define HTTP_PORT   8080
+//#define SERVER_NAME "100.66.1.21"
+#define SERVER_NAME "sipf.iot.sakura.ad.jp"
+#define HTTP_HOST   "sipf.iot.sakura.ad.jp"
+#define HTTP_PATH   "/connector/v0"
+#define HTTP_PORT   80
+
+//#define SERVER_NAME "133.242.234.182"
+//#define HTTP_HOST   "133.242.234.182"
+//#define HTTP_PATH   "/"
+//#define HTTP_PORT   8080
+
 #define BUFF_SZ (1024)
 
 static uint8_t req_buff[BUFF_SZ];
@@ -69,7 +78,7 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
         .ai_socktype = SOCK_STREAM,
     };
     // 接続先をセットアップするよ
-    ret = getaddrinfo(HTTP_HOST, NULL, &hints, &res);
+    ret = getaddrinfo(SERVER_NAME, NULL, &hints, &res);
     if (ret) {
         DebugPrint(ERR "getaddrinfo failed: ret=%d errno=%d\r\n", ret, errno);
         return -errno;
@@ -106,7 +115,7 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
     };
 
     req.method = HTTP_POST;
-    req.url = "/";
+    req.url = HTTP_PATH;
     req.host = HTTP_HOST;
     req.protocol = "HTTP/1.1";
     req.payload = payload;
@@ -145,7 +154,7 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
         return -1;
     }
 
-    uint16_t sz_packet = simp_obj_up->obj.value_len + 12 + 5;
+    uint16_t sz_packet = simp_obj_up->obj.value_len + 12 + 3;
 
     //COMMAND_TYPE
     req_buff[0] = (uint8_t)OBJECTS_UP;
@@ -161,30 +170,30 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
     //OPTION_FLAG
     req_buff[9] = 0x00;
     //PAYLOAD_SIZE(BigEndian)
-    sz = simp_obj_up->obj.value_len + 5;
+    sz = simp_obj_up->obj.value_len + 3;
     req_buff[10] = sz >> 8;
     req_buff[11] = sz & 0xff;
 
     //payload: OBJECTS_UP
     uint8_t *payload = &req_buff[12];
-    // OBJ_QTY 
-    payload[0] = 0x01;
     // OBJ
-    //  OBJ_LENGTH(BigEndian)
-    sz = simp_obj_up->obj.value_len + 4;
-    payload[1] = sz >> 8;
-    payload[2] = sz & 0xff;
     //  OBJ_TYPEID
-    payload[3] = simp_obj_up->obj.obj_type;
+    payload[0] = simp_obj_up->obj.obj_type;
     //  OBJ_TAGID
-    payload[4] = simp_obj_up->obj.obj_tagid;
+    payload[1] = simp_obj_up->obj.obj_tagid;
+    //  OBJ_LENGTH
+    payload[2] = simp_obj_up->obj.value_len;
     //  OBJ_VALUE
-    memcpy(&payload[5], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
+    memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
 
     static struct http_response http_res;
     ret = run_http_request(req_buff, sz_packet, &http_res);
 
     DebugPrint(INFO "run_http_request(): %d\r\n", ret);
+    if (ret < 0) {
+        return ret;
+    }
+
     DebugPrint(DBG "Response status %s\r\n", http_res.http_status);
     DebugPrint("content-length: %d\r\n", http_res.content_length);
     for (int i = 0; i < http_res.content_length; i++) {

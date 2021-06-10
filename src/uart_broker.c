@@ -9,6 +9,7 @@
 
 #include <zephyr.h>
 #include <drivers/uart.h>
+
 #include "uart_broker.h"
 
 #define PRIORITY (7)
@@ -33,6 +34,8 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
         while(uart_poll_in(uart, &b) == 0) {
             // UARTでなにか受けたら受信キューに突っ込む
             k_msgq_put(&msgq_rx, &b, K_NO_WAIT);    //TODO: キューに突っ込めないときどうするか
+
+            uart_poll_out(uart, b); //ECHO BACK
         }
         //TX
         while(k_msgq_get(&msgq_tx, &b, K_USEC(10)) == 0) {
