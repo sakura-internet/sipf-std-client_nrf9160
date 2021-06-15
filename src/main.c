@@ -37,6 +37,7 @@
 #define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
 
 static const struct device *uart_dev;
+static struct gpio_callback gpio_cb;
 
 /* Initialize AT communications */
 int at_comms_init(void) {
@@ -57,6 +58,13 @@ int at_comms_init(void) {
   return 0;
 }
 
+void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
+{
+  //リブート
+  UartBrokerPrint("RESET_REQ_DETECT\r\n");
+  sys_reboot(SYS_REBOOT_COLD);
+}
+
 static int wake_in_init(void)
 {
   const struct device *dev;
@@ -67,27 +75,15 @@ static int wake_in_init(void)
   }
   int ret;
   ret = gpio_pin_configure(dev, WAKE_IN_PIN, WAKE_IN_FLAGS);
-  DebugPrint("gpio_pin_configure(): %d\r\n", ret);
+  if (ret == 0) {
+    gpio_init_callback(&gpio_cb, wake_in_assert, BIT(WAKE_IN_PIN));
+    ret = gpio_add_callback(dev, &gpio_cb);
+    if (ret == 0) {
+      gpio_pin_interrupt_configure(dev, WAKE_IN_PIN, GPIO_INT_EDGE_TO_ACTIVE);
+    }
+  }
 
   return 0; 
-}
-
-static int wake_in_detect(void)
-{
-  static int prev_val = 0;
-  const struct device *dev;
-  dev = device_get_binding(WAKE_IN_PORT);
-
-  int val = gpio_pin_get(dev, WAKE_IN_PIN);
-  
-  if ((prev_val == 1) && (val == 1)) {
-    //リブート
-    UartBrokerPrint("RESET_REQ_DETECT\r\n");
-    sys_reboot(SYS_REBOOT_COLD);
-    return 1;
-  }
-  prev_val = val;
-  return 0;
 }
 
 static int led_init(void)
@@ -226,8 +222,6 @@ void main(void) {
       }
     }
     k_sleep(K_MSEC(1));
-
-    wake_in_detect();
   }
   time_delta = k_uptime_delta(&time_stamp);
 
