@@ -28,6 +28,8 @@
 #include "registers.h"
 #include "version.h"
 
+#define LED_HEARTBEAT_MS  (500)
+
 #define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
 #define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
 #define LED1_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led1), gpios))
@@ -103,6 +105,28 @@ static int led_init(void)
   return 0;
 }
 
+static int led_on(void)
+{
+	const struct device *dev = device_get_binding(LED_PORT);
+	if (dev == 0) {
+		DebugPrint("Nordic nRF GPIO driver was not found!\n");
+		return 1;
+	}
+  gpio_pin_set(dev, LED1_PIN, 1);
+  return 0;
+}
+
+static int led_off(void)
+{
+	const struct device *dev = device_get_binding(LED_PORT);
+	if (dev == 0) {
+		DebugPrint("Nordic nRF GPIO driver was not found!\n");
+		return 1;
+	}
+  gpio_pin_set(dev, LED1_PIN, 0);
+  return 0;
+}
+
 static int led_toggle(void)
 {
 	const struct device *dev;
@@ -173,10 +197,9 @@ static int init_modem_and_lte(void)
 void main(void) {
   int err;
 
-  int64_t time_stamp;
-  int64_t time_delta;
+  int64_t ms_now, ms_timeout;
+  led_on();
 
-  time_stamp = k_uptime_get();
   // 対ユーザーMUCのレジスタ初期化
   RegistersReset();
 
@@ -200,6 +223,7 @@ void main(void) {
   //モデムの初期化&LTE接続
   err = init_modem_and_lte();
   if (err) {
+    led_off();
     return;
   }
 
@@ -210,20 +234,23 @@ void main(void) {
   err = SipfClientSetAuthInfo("user2", "pass2");
   DebugPrint(DBG "SipfClientSetAuthInfo(): %d\r\n", err);
   UartBrokerPuts("+++ Ready +++\r\n");
+  ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {
     while (UartBrokerGetByte(&b) == 0) {
-      //UartBrokerPutByte(b);
-      led_toggle();
-      
       CmdResponse *cr = CmdParse(b);
       if (cr != NULL) {
         //UARTにレスポンスを返す
         UartBrokerPut(cr->response, cr->response_len);
       }
     }
+
+    // Heart Beat
+    ms_now = k_uptime_get();
+    if ((ms_timeout - ms_now) < 0) {
+      ms_timeout = ms_now + LED_HEARTBEAT_MS;
+      led_toggle();
+    }
+
     k_sleep(K_MSEC(1));
   }
-  time_delta = k_uptime_delta(&time_stamp);
-
-  DebugPrint("time delta=%lld\r\n", time_delta);
 }
