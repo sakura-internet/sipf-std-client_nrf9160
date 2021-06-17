@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <zephyr.h>
 #include <power/reboot.h>
+#include <zephyr.h>
 
 #include "debug_print.h"
 #include "fota/fota_http.h"

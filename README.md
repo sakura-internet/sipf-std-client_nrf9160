@@ -6,11 +6,13 @@
 
 See https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/getting_started.html .
 
+Using nRF Connect SDK v1.5.1 .
+
 ### Clone this repository
 
 ```
-git clone git@github.com:chibiegg/nrf91-m5stack-sample.git
-cd nrf91-m5stack-sample
+git clone git@github.com:sakurainc/sipf-std-client_nrf9160.git
+cd sipf-std-client_nrf9160
 ```
 
 ### Clean

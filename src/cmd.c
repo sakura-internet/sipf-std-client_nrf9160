@@ -3,10 +3,10 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <string.h>
 #include "cmd.h"
 #include "cmd_ascii.h"
 #include "debug_print.h"
+#include <string.h>
 
 static CmdState state = CMD_STATE_WAIT;
 static uint8_t in_buff[CMD_BUFF_SZ];

@@ -4,26 +4,26 @@
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#include <zephyr.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zephyr.h>
 
-#include <net/socket.h>
-#include <modem/nrf_modem_lib.h>
-#include <modem/lte_lc.h>
 #include <modem/at_cmd.h>
 #include <modem/at_notif.h>
-#include <modem/modem_key_mgmt.h>
+#include <modem/lte_lc.h>
 #include <modem/modem_info.h>
+#include <modem/modem_key_mgmt.h>
+#include <modem/nrf_modem_lib.h>
+#include <net/socket.h>
 
-#include <power/reboot.h>
 #include <drivers/gpio.h>
+#include <power/reboot.h>
 
 #include "cmd.h"
-#include "uart_broker.h"
 #include "debug_print.h"
-#include "sipf/sipf_client_http.h"
 #include "fota/fota_http.h"
+#include "sipf/sipf_client_http.h"
+#include "uart_broker.h"
 
 #include "registers.h"
 #include "version.h"
@@ -218,8 +218,12 @@ void main(void) {
   boot_write_img_confirmed();
 
   uint8_t b;
-  err = SipfClientSetAuthInfo("user2", "pass2");
-  DebugPrint(DBG "SipfClientSetAuthInfo(): %d\r\n", err);
+  err = SipfClientGetAuthInfo();
+  DebugPrint(DBG "SipfClientGetAuthInfo(): %d\r\n", err);
+  /*
+    err = SipfClientSetAuthInfo("user2", "pass2");
+    DebugPrint(DBG "SipfClientSetAuthInfo(): %d\r\n", err);
+  */
   UartBrokerPuts("+++ Ready +++\r\n");
   ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {

@@ -6,25 +6,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <net/http_client.h>
 #include <net/net_ip.h>
 #include <net/socket.h>
 #include <net/tls_credentials.h>
-#include <net/http_client.h>
 #include <sys/base64.h>
 
+#include "debug_print.h"
 #include "registers.h"
 #include "sipf/sipf_object.h"
-#include "debug_print.h"
 
 //#define SERVER_NAME "100.66.1.21"
 #define SERVER_NAME "sipf.iot.sakura.ad.jp"
 #define HTTP_HOST "sipf.iot.sakura.ad.jp"
-#define HTTP_PATH "/connector/v0"
+#define HTTP_CONNECTOR_PATH "/connector/v0"
 #define HTTP_PORT 80
+
+#define HTTP_SESSION_KEY_PATH "/config/v3/auth/session_key"
 
 //#define SERVER_NAME "133.242.234.182"
 //#define HTTP_HOST   "133.242.234.182"
-//#define HTTP_PATH   "/"
+//#define HTTP_CONNECTOR_PATH   "/"
 //#define HTTP_PORT   8080
 
 #define BUFF_SZ (1024)
@@ -34,7 +36,7 @@ static uint8_t res_buff[BUFF_SZ];
 
 static char req_auth_header[256];
 
-static void response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data) {
+static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data) {
   if (resp->data_len > 0) {
     DebugPrint("HTTP response has come\r\n");
     memcpy(user_data, resp, sizeof(struct http_response));
@@ -66,7 +68,7 @@ static int createAuthInfoFromRegister(void) {
   return len + 2;
 }
 
-static int run_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res) {
+static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res) {
   int sock;
   int ret;
   struct addrinfo *res;
@@ -75,7 +77,7 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
       .ai_socktype = SOCK_STREAM,
   };
   // 接続先をセットアップするよ
-  ret = getaddrinfo(SERVER_NAME, NULL, &hints, &res);
+  ret = getaddrinfo(hostname, NULL, &hints, &res);
   if (ret) {
     DebugPrint(ERR "getaddrinfo failed: ret=%d errno=%d\r\n", ret, errno);
     return -errno;
@@ -98,6 +100,13 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
     return -errno;
   }
 
+  ret = http_client_req(sock, req, 3 * MSEC_PER_SEC, http_res);
+  freeaddrinfo(res);
+  close(sock);
+  return ret;
+}
+
+static int run_connector_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res) {
   // リクエストを組み立てるよ
   createAuthInfoFromRegister(); //レジスタから認証情報を生成する
   DebugPrint("auth: %s\r\n", req_auth_header);
@@ -107,21 +116,36 @@ static int run_http_request(const uint8_t *payload, const int payload_len, struc
   const char *headers[] = {"Connection: Close\r\n", "Content-Type: application/octet-stream\r\n", req_auth_header, NULL};
 
   req.method = HTTP_POST;
-  req.url = HTTP_PATH;
+  req.url = HTTP_CONNECTOR_PATH;
   req.host = HTTP_HOST;
   req.protocol = "HTTP/1.1";
   req.payload = payload;
   req.payload_len = payload_len;
   req.header_fields = headers;
-  req.response = response_cb;
+  req.response = http_response_cb;
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  ret = http_client_req(sock, &req, 3 * MSEC_PER_SEC, (void *)http_res);
-  freeaddrinfo(res);
-  close(sock);
+  return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
+}
 
-  return ret;
+int run_get_session_key_http_request(struct http_response *http_res) {
+  struct http_request req;
+  memset(&req, 0, sizeof(req));
+  const char *headers[] = {"Connection: Close\r\n", "Content-Type: text/plain\r\n", "Accept: text/plain\r\n", NULL};
+
+  req.method = HTTP_POST;
+  req.url = HTTP_SESSION_KEY_PATH;
+  req.host = HTTP_HOST;
+  req.protocol = "HTTP/1.1";
+  req.payload = NULL;
+  req.payload_len = 0;
+  req.header_fields = headers;
+  req.response = http_response_cb;
+  req.recv_buf = res_buff;
+  req.recv_buf_len = sizeof(res_buff);
+
+  return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
 }
 
 int SipfClientSetAuthInfo(const char *user_name, const char *passwd) {
@@ -134,6 +158,42 @@ int SipfClientSetAuthInfo(const char *user_name, const char *passwd) {
     return -1;
   }
   return sprintf(req_auth_header, "Authorization: BASIC %s\r\n", tmp2);
+}
+
+int SipfClientGetAuthInfo(void) {
+  int ret;
+  static struct http_response http_res;
+  ret = run_get_session_key_http_request(&http_res);
+
+  DebugPrint(INFO "run_get_session_key_http_request(): %d\r\n", ret);
+  if (ret < 0) {
+    return ret;
+  }
+
+  DebugPrint(DBG "Response status %s\r\n", http_res.http_status);
+  DebugPrint("content-length: %d\r\n", http_res.content_length);
+  for (int i = 0; i < http_res.content_length; i++) {
+    DebugPrint("0x%02x ", http_res.body_start[i]);
+  }
+  DebugPrint("\r\n");
+
+  // レスポンスのフォーマットは USERNAME\nPASSWORD\n
+  // FIXME: 例外処理もしっかりやる
+  char *user_name = (char *)&http_res.body_start;
+  char *passwd = NULL;
+  for (int i = 0; i < http_res.content_length; i++) {
+    if (http_res.body_start[i] == '\n') {
+      http_res.body_start[i] = 0;
+      if (passwd == NULL) {
+        passwd = (char *)&(http_res.body_start[i + 1]);
+      }
+    }
+  }
+
+  if (passwd != NULL) {
+    return SipfClientSetAuthInfo(user_name, passwd);
+  }
+  return -1;
 }
 
 int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid) {
@@ -177,9 +237,9 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid) {
   memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
 
   static struct http_response http_res;
-  ret = run_http_request(req_buff, sz_packet, &http_res);
+  ret = run_connector_http_request(req_buff, sz_packet, &http_res);
 
-  DebugPrint(INFO "run_http_request(): %d\r\n", ret);
+  DebugPrint(INFO "run_connector_http_request(): %d\r\n", ret);
   if (ret < 0) {
     return ret;
   }
