@@ -28,7 +28,7 @@
 #include "registers.h"
 #include "version.h"
 
-#define LED_HEARTBEAT_MS  (500)
+#define LED_HEARTBEAT_MS (500)
 
 #define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
 #define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
@@ -60,20 +60,18 @@ int at_comms_init(void) {
   return 0;
 }
 
-void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
-{
+void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins) {
   //リブート
   UartBrokerPrint("RESET_REQ_DETECT\r\n");
   sys_reboot(SYS_REBOOT_COLD);
 }
 
-static int wake_in_init(void)
-{
+static int wake_in_init(void) {
   const struct device *dev;
   dev = device_get_binding(WAKE_IN_PORT);
   if (dev == 0) {
-		DebugPrint("Nordic nRF GPIO driver was not found!\n");
-		return 1;
+    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    return 1;
   }
   int ret;
   ret = gpio_pin_configure(dev, WAKE_IN_PIN, WAKE_IN_FLAGS);
@@ -85,18 +83,17 @@ static int wake_in_init(void)
     }
   }
 
-  return 0; 
+  return 0;
 }
 
-static int led_init(void)
-{
-	const struct device *dev;
+static int led_init(void) {
+  const struct device *dev;
 
-	dev = device_get_binding(LED_PORT);
-	if (dev == 0) {
-		DebugPrint("Nordic nRF GPIO driver was not found!\n");
-		return 1;
-	}
+  dev = device_get_binding(LED_PORT);
+  if (dev == 0) {
+    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    return 1;
+  }
   int ret;
   ret = gpio_pin_configure(dev, LED1_PIN, LED1_FLAGS);
   DebugPrint("gpio_pin_configure(): %d\r\n", ret);
@@ -105,52 +102,48 @@ static int led_init(void)
   return 0;
 }
 
-static int led_on(void)
-{
-	const struct device *dev = device_get_binding(LED_PORT);
-	if (dev == 0) {
-		DebugPrint("Nordic nRF GPIO driver was not found!\n");
-		return 1;
-	}
+static int led_on(void) {
+  const struct device *dev = device_get_binding(LED_PORT);
+  if (dev == 0) {
+    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    return 1;
+  }
   gpio_pin_set(dev, LED1_PIN, 1);
   return 0;
 }
 
-static int led_off(void)
-{
-	const struct device *dev = device_get_binding(LED_PORT);
-	if (dev == 0) {
-		DebugPrint("Nordic nRF GPIO driver was not found!\n");
-		return 1;
-	}
+static int led_off(void) {
+  const struct device *dev = device_get_binding(LED_PORT);
+  if (dev == 0) {
+    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    return 1;
+  }
   gpio_pin_set(dev, LED1_PIN, 0);
   return 0;
 }
 
-static int led_toggle(void)
-{
-	const struct device *dev;
+static int led_toggle(void) {
+  const struct device *dev;
   static int val = 0;
 
-	dev = device_get_binding(LED_PORT);
-	if (dev == 0) {
-		printk("Nordic nRF GPIO driver was not found!\n");
-		return 1;
-	}
+  dev = device_get_binding(LED_PORT);
+  if (dev == 0) {
+    printk("Nordic nRF GPIO driver was not found!\n");
+    return 1;
+  }
   gpio_pin_set(dev, LED1_PIN, val);
   val = (val == 0) ? 1 : 0;
   return 0;
 }
 
-static int init_modem_and_lte(void)
-{
+static int init_modem_and_lte(void) {
   int err = 0;
 
-	err = nrf_modem_lib_init(NORMAL_MODE);
-	if (err) {
-		DebugPrint("Failed to initialize modem library!");
-		return err;
-	}
+  err = nrf_modem_lib_init(NORMAL_MODE);
+  if (err) {
+    DebugPrint("Failed to initialize modem library!");
+    return err;
+  }
 
   /* Initialize AT comms in order to provision the certificate */
   err = at_comms_init();
@@ -203,16 +196,10 @@ void main(void) {
   // 対ユーザーMUCのレジスタ初期化
   RegistersReset();
 
-  // UartBrokerの初期化(以降、Debug系の出力も可能) 
+  // UartBrokerの初期化(以降、Debug系の出力も可能)
   uart_dev = device_get_binding(UART_LABEL);
   UartBrokerInit(uart_dev);
-  UartBrokerPrint(
-    "*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n",
-    *REG_CMN_FW_TYPE,
-    *REG_CMN_VER_MJR,
-    *REG_CMN_VER_MNR,
-    *REG_CMN_VER_REL
-  );
+  UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
 
   // LEDの初期化
   led_init();
@@ -227,7 +214,7 @@ void main(void) {
     return;
   }
 
-  //LTEつながるならOKなFWよね
+  // LTEつながるならOKなFWよね
   boot_write_img_confirmed();
 
   uint8_t b;
@@ -239,7 +226,7 @@ void main(void) {
     while (UartBrokerGetByte(&b) == 0) {
       CmdResponse *cr = CmdParse(b);
       if (cr != NULL) {
-        //UARTにレスポンスを返す
+        // UARTにレスポンスを返す
         UartBrokerPut(cr->response, cr->response_len);
       }
     }
