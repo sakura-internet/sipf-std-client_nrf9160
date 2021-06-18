@@ -22,7 +22,7 @@
 #define HTTP_CONNECTOR_PATH "/connector/v0"
 #define HTTP_PORT 80
 
-#define HTTP_SESSION_KEY_PATH "/config/v3/auth/session_key"
+#define HTTP_SESSION_KEY_PATH "/auth/sessionkey"
 
 //#define SERVER_NAME "133.242.234.182"
 //#define HTTP_HOST   "133.242.234.182"
@@ -108,7 +108,10 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
 
 static int run_connector_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res) {
   // リクエストを組み立てるよ
-  createAuthInfoFromRegister(); //レジスタから認証情報を生成する
+  if (*REG_00_MODE == 0x00) {
+    //パスワード認証モードの場合
+    createAuthInfoFromRegister(); //レジスタから認証情報を生成する
+  }
   DebugPrint("auth: %s\r\n", req_auth_header);
 
   struct http_request req;
@@ -176,6 +179,11 @@ int SipfClientGetAuthInfo(void) {
     DebugPrint("0x%02x ", http_res.body_start[i]);
   }
   DebugPrint("\r\n");
+
+  if (strcmp(http_res.http_status, "OK") != 0) {
+    // 200 OK以外のレスポンスが返ってきた
+    return -1;
+  }
 
   // レスポンスのフォーマットは USERNAME\nPASSWORD\n
   // FIXME: 例外処理もしっかりやる

@@ -217,13 +217,7 @@ void main(void) {
   // LTEつながるならOKなFWよね
   boot_write_img_confirmed();
 
-  uint8_t b;
-  err = SipfClientGetAuthInfo();
-  DebugPrint(DBG "SipfClientGetAuthInfo(): %d\r\n", err);
-  /*
-    err = SipfClientSetAuthInfo("user2", "pass2");
-    DebugPrint(DBG "SipfClientSetAuthInfo(): %d\r\n", err);
-  */
+  uint8_t b, prev_auth_mode = 0x00;
   UartBrokerPuts("+++ Ready +++\r\n");
   ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {
@@ -241,6 +235,17 @@ void main(void) {
       ms_timeout = ms_now + LED_HEARTBEAT_MS;
       led_toggle();
     }
+
+    if ((*REG_00_MODE == 0x01) && (prev_auth_mode == 0x00)) {
+      // 認証モードがIPアドレス認証に切り替えられた
+      err = SipfClientGetAuthInfo();
+      DebugPrint(DBG "SipfClientGetAuthInfo(): %d\r\n", err);
+      if (err < 0) {
+        // IPアドレス認証に失敗した
+        *REG_00_MODE = 0x00;  // モードが切り替えられなかった
+      }
+    }
+    prev_auth_mode = *REG_00_MODE;
 
     k_sleep(K_MSEC(1));
   }
