@@ -16,18 +16,14 @@
 #include "registers.h"
 #include "sipf/sipf_object.h"
 
-//#define SERVER_NAME "100.66.1.21"
 #define SERVER_NAME "sipf.iot.sakura.ad.jp"
-#define HTTP_HOST "sipf.iot.sakura.ad.jp"
+#define HTTP_HOST SERVER_NAME
 #define HTTP_CONNECTOR_PATH "/connector/v0"
 #define HTTP_PORT 80
+#define HTTPS_PORT 443
+#define TLS_SEC_TAG 42
 
 #define HTTP_SESSION_KEY_PATH "/auth/sessionkey"
-
-//#define SERVER_NAME "133.242.234.182"
-//#define HTTP_HOST   "133.242.234.182"
-//#define HTTP_CONNECTOR_PATH   "/"
-//#define HTTP_PORT   8080
 
 #define BUFF_SZ (1024)
 
@@ -36,14 +32,63 @@ static uint8_t res_buff[BUFF_SZ];
 
 static char req_auth_header[256];
 
-static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data) {
+/* Setup TLS options on a given socket */
+static int tls_setup(int fd)
+{
+  int err;
+  int verify;
+
+  /* Security tag that we have provisioned the certificate with */
+  const sec_tag_t tls_sec_tag[] = {
+      TLS_SEC_TAG,
+  };
+
+  /* Set up TLS peer verification */
+  enum
+  {
+    NONE = 0,
+    OPTIONAL = 1,
+    REQUIRED = 2,
+  };
+
+  verify = REQUIRED;
+
+  err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
+  if (err) {
+    DebugPrint("Failed to setup peer verification, err %d\n", errno);
+    return err;
+  }
+
+  /* Associate the socket with the security tag
+   * we have provisioned the certificate with.
+   */
+  err = setsockopt(fd, SOL_TLS, TLS_SEC_TAG_LIST, tls_sec_tag, sizeof(tls_sec_tag));
+  if (err) {
+    DebugPrint("Failed to setup TLS sec tag, err %d\n", errno);
+    return err;
+  }
+
+  err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, SERVER_NAME, strlen(SERVER_NAME));
+  if (err) {
+    DebugPrint("Failed to Set TLS Hostname, err %d\n", errno);
+    return err;
+  }
+
+  return 0;
+}
+
+/** HTTP Client **/
+
+static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
+{
   if (resp->data_len > 0) {
     DebugPrint("HTTP response has come\r\n");
     memcpy(user_data, resp, sizeof(struct http_response));
   }
 }
 
-static int createAuthInfoFromRegister(void) {
+static int createAuthInfoFromRegister(void)
+{
   char tmp[162];
   int len, olen;
 
@@ -68,7 +113,8 @@ static int createAuthInfoFromRegister(void) {
   return len + 2;
 }
 
-static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res) {
+static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res)
+{
   int sock;
   int ret;
   struct addrinfo *res;
@@ -82,16 +128,24 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
     DebugPrint(ERR "getaddrinfo failed: ret=%d errno=%d\r\n", ret, errno);
     return -errno;
   }
-  ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTP_PORT);
+  ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTPS_PORT);
 
-  sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
   if (sock < 0) {
     DebugPrint(ERR "socket() failed: ret=%d errno=%d\r\n", ret, errno);
     freeaddrinfo(res);
     return -errno;
   }
+  // TLSを設定
+  ret = tls_setup(sock);
+  if (ret != 0) {
+    DebugPrint(ERR "tls_setup() failed: ret=%d\r\n", ret);
+    freeaddrinfo(res);
+    (void)close(sock);
+    return -errno;
+  }
   // 接続するよ
-  DebugPrint(INFO "Connect to " HTTP_HOST ":%d\r\n", HTTP_PORT);
+  DebugPrint(INFO "Connect to " HTTP_HOST ":%d\r\n", HTTPS_PORT);
   ret = connect(sock, res->ai_addr, sizeof(struct sockaddr_in));
   if (ret) {
     DebugPrint(ERR "connect() failed: ret=%d errno=%d\r\n", ret, errno);
@@ -106,7 +160,8 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
   return ret;
 }
 
-static int run_connector_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res) {
+static int run_connector_http_request(const uint8_t *payload, const int payload_len, struct http_response *http_res)
+{
   // リクエストを組み立てるよ
   if (*REG_00_MODE == 0x00) {
     //パスワード認証モードの場合
@@ -132,7 +187,8 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
   return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
 }
 
-int run_get_session_key_http_request(struct http_response *http_res) {
+int run_get_session_key_http_request(struct http_response *http_res)
+{
   struct http_request req;
   memset(&req, 0, sizeof(req));
   const char *headers[] = {"Connection: Close\r\n", "Content-Type: text/plain\r\n", "Accept: text/plain\r\n", NULL};
@@ -151,7 +207,8 @@ int run_get_session_key_http_request(struct http_response *http_res) {
   return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
 }
 
-int SipfClientSetAuthInfo(const char *user_name, const char *passwd) {
+int SipfClientSetAuthInfo(const char *user_name, const char *passwd)
+{
   char tmp1[128], tmp2[128];
 
   int ilen, olen;
@@ -163,7 +220,8 @@ int SipfClientSetAuthInfo(const char *user_name, const char *passwd) {
   return sprintf(req_auth_header, "Authorization: BASIC %s\r\n", tmp2);
 }
 
-int SipfClientGetAuthInfo(void) {
+int SipfClientGetAuthInfo(void)
+{
   int ret;
   static struct http_response http_res;
   ret = run_get_session_key_http_request(&http_res);
@@ -204,7 +262,8 @@ int SipfClientGetAuthInfo(void) {
   return -1;
 }
 
-int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid) {
+int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
+{
   int ret;
   uint16_t sz;
 

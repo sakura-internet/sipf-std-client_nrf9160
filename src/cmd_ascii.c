@@ -19,7 +19,8 @@
 static uint8_t buff_work[256];
 /**/
 typedef int (*ascii_cmd_func)(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len);
-typedef struct {
+typedef struct
+{
   char *cmd_name;
   ascii_cmd_func cmd_func;
 } CmdAsciiCmd;
@@ -30,7 +31,8 @@ static bool is_unlocked = false;
 /**
  * 2桁の16進文字列をUINT8に変換する
  */
-static uint8_t hexToUint8(uint8_t *pchars, uint8_t *err) {
+static uint8_t hexToUint8(uint8_t *pchars, uint8_t *err)
+{
   uint8_t ret = 0;
   if (err) {
     *err = 0;
@@ -59,7 +61,8 @@ static int cmdCreateResOk(uint8_t *out_buff, uint16_t out_buff_len) { return snp
 
 static int cmdCreateResNg(uint8_t *out_buff, uint16_t out_buff_len) { return snprintf(out_buff, out_buff_len, "NG\r\n"); }
 
-static int cmdAsciiCmdW(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+static int cmdAsciiCmdW(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   is_unlocked = false;
 
   if (in_len != 6) {
@@ -104,7 +107,8 @@ static int cmdAsciiCmdW(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, ui
   return cmdCreateResOk(out_buff, out_buff_len);
 }
 
-static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   is_unlocked = false;
   if (in_len != 3) {
     // lengthが合わない
@@ -135,7 +139,8 @@ static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, ui
   ;
 }
 
-static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   is_unlocked = false;
 
   if (in_len < 8) {
@@ -252,7 +257,8 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
  * $$UNLOCKコマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
  */
-static int cmdAsciiCmdUnlock(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+static int cmdAsciiCmdUnlock(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   if (in_buff[0] != 0x20) {
     // 先頭がスペースじゃない
     return cmdCreateResIllParam(out_buff, out_buff_len);
@@ -278,7 +284,8 @@ static int cmdAsciiCmdUnlock(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
  * $$UPDATEコマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
  */
-static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   if (is_unlocked == false) {
     // UNLOCKされてない
     return cmdCreateResNg(out_buff, out_buff_len);
@@ -302,7 +309,8 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
 
 static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {NULL, NULL}};
 
-int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len) {
+int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
   int idx = 0;
   // コマンドリストを探す
   while (cmdfunc[idx].cmd_func) {

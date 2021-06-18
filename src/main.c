@@ -15,6 +15,7 @@
 #include <modem/modem_key_mgmt.h>
 #include <modem/nrf_modem_lib.h>
 #include <net/socket.h>
+#include <net/tls_credentials.h>
 
 #include <drivers/gpio.h>
 #include <power/reboot.h>
@@ -28,6 +29,7 @@
 #include "registers.h"
 #include "version.h"
 
+/** peripheral **/
 #define LED_HEARTBEAT_MS (500)
 
 #define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
@@ -37,12 +39,22 @@
 #define WAKE_IN_PORT DT_GPIO_LABEL(DT_ALIAS(sw2), gpios)
 #define WAKE_IN_PIN (DT_GPIO_PIN(DT_ALIAS(sw2), gpios))
 #define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
+/**********/
+
+/** TLS **/
+#define TLS_SEC_TAG 42
+static const char cert[] = {
+#include "../cert/sipf.iot.sakura.ad.jp"
+};
+BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
+/*********/
 
 static const struct device *uart_dev;
 static struct gpio_callback gpio_cb;
 
 /* Initialize AT communications */
-int at_comms_init(void) {
+int at_comms_init(void)
+{
   int err;
 
   err = at_cmd_init();
@@ -60,13 +72,15 @@ int at_comms_init(void) {
   return 0;
 }
 
-void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins) {
+void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
+{
   //リブート
   UartBrokerPrint("RESET_REQ_DETECT\r\n");
   sys_reboot(SYS_REBOOT_COLD);
 }
 
-static int wake_in_init(void) {
+static int wake_in_init(void)
+{
   const struct device *dev;
   dev = device_get_binding(WAKE_IN_PORT);
   if (dev == 0) {
@@ -86,7 +100,9 @@ static int wake_in_init(void) {
   return 0;
 }
 
-static int led_init(void) {
+/** LED **/
+static int led_init(void)
+{
   const struct device *dev;
 
   dev = device_get_binding(LED_PORT);
@@ -102,7 +118,8 @@ static int led_init(void) {
   return 0;
 }
 
-static int led_on(void) {
+static int led_on(void)
+{
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
     DebugPrint("Nordic nRF GPIO driver was not found!\n");
@@ -112,7 +129,8 @@ static int led_on(void) {
   return 0;
 }
 
-static int led_off(void) {
+static int led_off(void)
+{
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
     DebugPrint("Nordic nRF GPIO driver was not found!\n");
@@ -122,7 +140,8 @@ static int led_off(void) {
   return 0;
 }
 
-static int led_toggle(void) {
+static int led_toggle(void)
+{
   const struct device *dev;
   static int val = 0;
 
@@ -135,8 +154,45 @@ static int led_toggle(void) {
   val = (val == 0) ? 1 : 0;
   return 0;
 }
+/***********/
 
-static int init_modem_and_lte(void) {
+/** MODEM **/
+static int cert_provision(void)
+{
+  int err;
+  bool exists;
+  uint8_t unused;
+
+  err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists, &unused);
+  if (err) {
+    DebugPrint("Failed to check for certificates err %d\n", err);
+    return err;
+  }
+
+  if (exists) {
+    /* For the sake of simplicity we delete what is provisioned
+     * with our security tag and reprovision our certificate.
+     */
+    err = modem_key_mgmt_delete(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN);
+    if (err) {
+      DebugPrint("Failed to delete existing certificate, err %d\n", err);
+    }
+  }
+
+  DebugPrint("Provisioning certificate\n");
+
+  /*  Provision certificate to the modem */
+  err = modem_key_mgmt_write(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, cert, sizeof(cert) - 1);
+  if (err) {
+    DebugPrint("Failed to provision certificate, err %d\n", err);
+    return err;
+  }
+
+  return 0;
+}
+
+static int init_modem_and_lte(void)
+{
   int err = 0;
 
   err = nrf_modem_lib_init(NORMAL_MODE);
@@ -149,6 +205,13 @@ static int init_modem_and_lte(void) {
   err = at_comms_init();
   if (err) {
     DebugPrint("Faild to at_comms_init(): %d\r\n", err);
+    return err;
+  }
+
+  /* Provision certificates before connecting to the LTE network */
+  err = cert_provision();
+  if (err) {
+    DebugPrint("Faild to cert_provision(): %d\r\n", err);
     return err;
   }
 
@@ -186,8 +249,10 @@ static int init_modem_and_lte(void) {
 
   return err;
 }
+/**********/
 
-void main(void) {
+void main(void)
+{
   int err;
 
   int64_t ms_now, ms_timeout;
@@ -242,7 +307,7 @@ void main(void) {
       DebugPrint(DBG "SipfClientGetAuthInfo(): %d\r\n", err);
       if (err < 0) {
         // IPアドレス認証に失敗した
-        *REG_00_MODE = 0x00;  // モードが切り替えられなかった
+        *REG_00_MODE = 0x00; // モードが切り替えられなかった
       }
     }
     prev_auth_mode = *REG_00_MODE;
