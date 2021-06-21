@@ -6,7 +6,7 @@
 #ifndef DEBUG_PRINT_H
 #define DEBUG_PRINT_H
 
-#define DEBUG_PRINT
+//#define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
 #include "uart_broker.h"
