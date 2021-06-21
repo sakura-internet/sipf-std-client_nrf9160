@@ -6,8 +6,8 @@
 #ifndef FOTA_HTTP_H
 #define FOTA_HTTP_H
 
-#include <dfu/mcuboot.h>
 #include <dfu/dfu_target_mcuboot.h>
+#include <dfu/mcuboot.h>
 #include <net/fota_download.h>
 
 #define DOWNLOAD_HOST "sipf.iot.sakura.ad.jp"

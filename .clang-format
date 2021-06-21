@@ -7,6 +7,8 @@ IndentWidth:     2
 AllowAllParametersOfDeclarationOnNextLine: false
 ColumnLimit:     1000
 
+BreakBeforeBraces: Mozilla
+
 # AccessModifierOffset: -2
 # AlignAfterOpenBracket: Align
 # AlignConsecutiveAssignments: false

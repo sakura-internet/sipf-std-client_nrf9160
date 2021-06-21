@@ -3,15 +3,16 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <zephyr.h>
 #include <power/reboot.h>
+#include <zephyr.h>
 
 #include "debug_print.h"
 #include "fota/fota_http.h"
 
 static uint8_t fota_buf[512];
 
-static void fota_dl_event_handler(const struct fota_download_evt *evt) {
+static void fota_dl_event_handler(const struct fota_download_evt *evt)
+{
   switch (evt->id) {
   case FOTA_DOWNLOAD_EVT_ERROR:
     DebugPrint(ERR "fota_download failed...\r\n");
@@ -25,7 +26,8 @@ static void fota_dl_event_handler(const struct fota_download_evt *evt) {
   }
 }
 
-int FotaHttpRun(void) {
+int FotaHttpRun(void)
+{
   int ret;
   // DFUライブラリにバッファを設定
   ret = dfu_target_mcuboot_set_buf(fota_buf, sizeof(fota_buf));

@@ -16,7 +16,7 @@ for directory in ${TARGETS}; do
     if ! `echo ${BLACK_LIST[@]} | grep -q "${basename}"` ; then
       echo ${filename}
       format ${filename}
-      git add ${filename}
+      #git add ${filename}
     fi
   done
 done

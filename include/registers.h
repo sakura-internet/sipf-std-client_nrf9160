@@ -6,9 +6,9 @@
 #ifndef _REGISTERS_H_
 #define _REGISTERS_H_
 
+#include "version.h"
 #include <stdint.h>
 #include <string.h>
-#include "version.h"
 
 extern uint8_t bank00[240];
 #define REG_00_MODE (uint8_t *)&bank00[0x00]

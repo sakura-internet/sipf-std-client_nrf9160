@@ -6,8 +6,8 @@
 #ifndef _UART_BROKER_H_
 #define _UART_BROKER_H_
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define UART_LABEL DT_LABEL(DT_NODELABEL(uart0))
 

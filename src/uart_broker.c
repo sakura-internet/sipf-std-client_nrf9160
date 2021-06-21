@@ -24,7 +24,8 @@ K_THREAD_STACK_DEFINE(stack_ub, STACK_UB_SZ);
 static struct k_thread thread_ub;
 static k_tid_t tid_ub;
 
-static void uart_broker_thread(void *dev, void *arg2, void *arg3) {
+static void uart_broker_thread(void *dev, void *arg2, void *arg3)
+{
   const struct device *uart = (struct device *)dev;
   uint8_t b;
 
@@ -45,12 +46,14 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3) {
 }
 
 /** Interface **/
-int UartBrokerPutByte(uint8_t byte) {
+int UartBrokerPutByte(uint8_t byte)
+{
   return k_msgq_put(&msgq_tx, &byte, K_MSEC(10));
   ;
 }
 
-int UartBrokerPut(uint8_t *data, int len) {
+int UartBrokerPut(uint8_t *data, int len)
+{
   int cnt = 0;
   int ret;
   for (int i = 0; i < len; i++) {
@@ -67,7 +70,8 @@ int UartBrokerPuts(const char *msg) { return UartBrokerPut((uint8_t *)msg, strle
 
 int UartBrokerGetByte(uint8_t *byte) { return k_msgq_get(&msgq_rx, byte, K_MSEC(1)); }
 
-int UartBrokerGet(uint8_t *data, int len) {
+int UartBrokerGet(uint8_t *data, int len)
+{
   int cnt = 0;
   int ret;
   for (int i = 0; i < len; i++) {
@@ -80,7 +84,8 @@ int UartBrokerGet(uint8_t *data, int len) {
   return cnt;
 }
 
-int UartBrokerInit(const struct device *uart) {
+int UartBrokerInit(const struct device *uart)
+{
   // 送受信キュー作成
   k_msgq_init(&msgq_tx, tx_buff, 1, UART_TX_BUF_SZ);
   k_msgq_init(&msgq_rx, rx_buff, 1, UART_RX_BUF_SZ);
