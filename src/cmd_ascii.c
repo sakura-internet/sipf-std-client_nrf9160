@@ -188,7 +188,7 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
   SipfObjectUp objup;
   objup.obj.obj_tagid = tag_id;
   objup.obj.obj_type = type_id;
-  DebugPrint("tag_id: 0x%02x, type: 0x%02x\r\n", tag_id, type_id);
+  DebugPrint("tag_id: 0x%02x, type: 0x%02x, val=%s\r\n", tag_id, type_id, top_value);
   switch (type_id) {
   case OBJ_TYPE_UINT8:
   case OBJ_TYPE_INT8:
@@ -218,8 +218,11 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
     break;
   case OBJ_TYPE_BIN_BASE64:
   case OBJ_TYPE_STR_UTF8:
-    // (とりあえず)未実装
-    return cmdCreateResIllParam(out_buff, out_buff_len);
+    if ((val_str_len % 2) != 0) {
+      // 奇数文字数はエラー
+      return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    break;
   default:
     // TYPEが範囲外
     return cmdCreateResIllParam(out_buff, out_buff_len);
