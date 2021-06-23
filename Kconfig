@@ -1,0 +1,60 @@
+#
+# Copyright (c) 2021 Sakura Internet Inc.
+#
+# SPDX-License-Identifier: MIT
+#
+
+#
+# Copyright (c) 2019 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "SIPF standard client"
+
+config SIPF_HTTP_HOST
+	string "SIPF endpoint host name."
+
+config SIPF_FOTA_HOST
+	string "Application update host name"
+	help
+	  Host part of URL to application update binary. For example
+	  if the file is stored in http://foo.bar/update.bin the value
+	  of this configuration should be 'foo.bar'
+
+config SIPF_FOTA_PATH
+	string "Application update file name"
+	help
+	  File part of URL to application update binary. For example
+	  if the file is stored in http://foo.bar/update.bin the value
+	  of this configuration should be 'update.bin'
+
+config SIPF_DEBUG_PRINT
+	bool
+	prompt "Use DebugPrint() functions."
+
+config SIPF_APP_TYPE
+	int "Application type"
+
+config SIPF_APP_VER_MAJOR
+	int "Application Major version" 
+
+config SIPF_APP_VER_MINOR
+	int "Application Minor version" 
+
+config SIPF_APP_VER_RELEASE
+	int "Application Release version" 
+
+#config APPLICATION_VERSION
+#	int "Application version"
+#	default 1
+#
+#config USE_HTTPS
+#	bool
+#	prompt "Use HTTPS for download"
+
+endmenu
+
+menu "Zephyr Kernel"
+source "Kconfig.zephyr"
+endmenu

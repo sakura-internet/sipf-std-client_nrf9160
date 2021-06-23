@@ -1,10 +1,10 @@
 #ifndef _VERSION_H_
 #define _VERSION_H_
 
-#define FW_TYPE 0
+#define FW_TYPE CONFIG_SIPF_APP_TYPE
 
-#define VER_MJR 0
-#define VER_MNR 1
-#define VER_REL 0
+#define VER_MJR CONFIG_SIPF_APP_VER_MAJOR
+#define VER_MNR CONFIG_SIPF_APP_VER_MINOR
+#define VER_REL CONFIG_SIPF_APP_VER_RELEASE
 
 #endif

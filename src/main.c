@@ -193,6 +193,7 @@ static int cert_provision(void)
 
 static int init_modem_and_lte(void)
 {
+  static char at_ret[128];
   int err = 0;
 
   err = nrf_modem_lib_init(NORMAL_MODE);
@@ -246,6 +247,22 @@ static int init_modem_and_lte(void)
     return err;
   }
   DebugPrint("OK\r\n");
+
+  enum at_cmd_state at_state;
+  err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
+  if (err) {
+    DebugPrint("Failed to get ICCID, err %d\r\n", err);
+    return err;
+  }
+  if (at_state == AT_CMD_OK) {
+    char *iccid_top = &at_ret[9]; // ICCIDの先頭
+    for (int i = 0; i < 20; i++) {
+      if (iccid_top[i] == 'F') {
+        iccid_top[i] = 0x00;
+      }
+    }
+    UartBrokerPrint("ICCID: %s\r\n", iccid_top);
+  }
 
   return err;
 }

@@ -16,7 +16,8 @@
 #include "registers.h"
 #include "sipf/sipf_object.h"
 
-#define SERVER_NAME "sipf.iot.sakura.ad.jp"
+//#define SERVER_NAME "sipf.iot.sakura.ad.jp"
+#define SERVER_NAME CONFIG_SIPF_HTTP_HOST
 #define HTTP_HOST SERVER_NAME
 #define HTTP_CONNECTOR_PATH "/connector/v0"
 #define HTTP_PORT 80

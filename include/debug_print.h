@@ -8,7 +8,8 @@
 
 //#define DEBUG_PRINT
 
-#ifdef DEBUG_PRINT
+//#ifdef DEBUG_PRINT
+#ifdef CONFIG_SIPF_DEBUG_PRINT
 #include "uart_broker.h"
 #define DBG "DBG:"
 #define INFO "INFO:"
