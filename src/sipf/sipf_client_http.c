@@ -24,7 +24,7 @@
 #define HTTPS_PORT 443
 #define TLS_SEC_TAG 42
 
-#define HTTP_SESSION_KEY_PATH "/auth/sessionkey"
+#define HTTP_SESSION_KEY_PATH "/auth/v0/session_key"
 
 #define BUFF_SZ (1024)
 
@@ -234,11 +234,12 @@ int SipfClientGetAuthInfo(void)
 
   DebugPrint(DBG "Response status %s\r\n", http_res.http_status);
   DebugPrint("content-length: %d\r\n", http_res.content_length);
+#ifdef CONFIG_SIPF_DEBUG_PRINT
   for (int i = 0; i < http_res.content_length; i++) {
     DebugPrint("0x%02x ", http_res.body_start[i]);
   }
   DebugPrint("\r\n");
-
+#endif
   if (strcmp(http_res.http_status, "OK") != 0) {
     // 200 OK以外のレスポンスが返ってきた
     return -1;
@@ -246,7 +247,7 @@ int SipfClientGetAuthInfo(void)
 
   // レスポンスのフォーマットは USERNAME\nPASSWORD\n
   // FIXME: 例外処理もしっかりやる
-  char *user_name = (char *)&http_res.body_start;
+  char *user_name = (char *)&http_res.body_start[0];
   char *passwd = NULL;
   for (int i = 0; i < http_res.content_length; i++) {
     if (http_res.body_start[i] == '\n') {
@@ -256,7 +257,7 @@ int SipfClientGetAuthInfo(void)
       }
     }
   }
-
+  DebugPrint("user_name=%s passwd=%s\r\n", user_name, passwd);
   if (passwd != NULL) {
     return SipfClientSetAuthInfo(user_name, passwd);
   }
