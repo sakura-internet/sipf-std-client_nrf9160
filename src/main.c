@@ -36,6 +36,12 @@
 #define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
 #define LED1_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led1), gpios))
 
+#define LED2_PIN (DT_GPIO_PIN(DT_ALIAS(led2), gpios))
+#define LED2_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led2), gpios))
+
+#define LED3_PIN (DT_GPIO_PIN(DT_ALIAS(led3), gpios))
+#define LED3_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led3), gpios))
+
 #define WAKE_IN_PORT DT_GPIO_LABEL(DT_ALIAS(sw2), gpios)
 #define WAKE_IN_PIN (DT_GPIO_PIN(DT_ALIAS(sw2), gpios))
 #define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
@@ -111,36 +117,50 @@ static int led_init(void)
     return 1;
   }
   int ret;
+  /* Initialize LED1  */
   ret = gpio_pin_configure(dev, LED1_PIN, LED1_FLAGS);
-  DebugPrint("gpio_pin_configure(): %d\r\n", ret);
-  ret = gpio_pin_set(dev, LED1_PIN, 1);
-  DebugPrint("gpio_pin_set(): %d\r\n", ret);
+  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED1_PIN, ret);
+  ret = gpio_pin_set(dev, LED1_PIN, 0);
+  DebugPrint("gpio_pin_set(%d): %d\r\n", LED1_PIN, ret);
+
+  /* Initialize LED2  */
+  ret = gpio_pin_configure(dev, LED2_PIN, LED2_FLAGS);
+  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED2_PIN, ret);
+  ret = gpio_pin_set(dev, LED2_PIN, 0);
+  DebugPrint("gpio_pin_set(%d): %d\r\n", LED2_PIN, ret);
+
+  /* Initialize LED3  */
+  ret = gpio_pin_configure(dev, LED3_PIN, LED3_FLAGS);
+  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED3_PIN, ret);
+  ret = gpio_pin_set(dev, LED3_PIN, 0);
+  DebugPrint("gpio_pin_set(%d): %d\r\n", LED3_PIN, ret);
+
   return 0;
 }
 
-static int led_on(void)
+static int led_on(gpio_pin_t pin)
 {
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
     DebugPrint("Nordic nRF GPIO driver was not found!\n");
     return 1;
   }
-  gpio_pin_set(dev, LED1_PIN, 1);
+  gpio_pin_set(dev, pin, 1);
   return 0;
 }
 
-static int led_off(void)
+static int led_off(gpio_pin_t pin)
 {
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
     DebugPrint("Nordic nRF GPIO driver was not found!\n");
     return 1;
   }
-  gpio_pin_set(dev, LED1_PIN, 0);
+  gpio_pin_set(dev, pin, 0);
   return 0;
 }
 
-static int led_toggle(void)
+static int led1_toggle(void)
 {
   const struct device *dev;
   static int val = 0;
@@ -273,7 +293,6 @@ void main(void)
   int err;
 
   int64_t ms_now, ms_timeout;
-  led_on();
 
   // 対ユーザーMUCのレジスタ初期化
   RegistersReset();
@@ -285,6 +304,7 @@ void main(void)
 
   // LEDの初期化
   led_init();
+  led_on(LED2_PIN);
 
   // WAKE_INの初期化
   wake_in_init();
@@ -292,7 +312,7 @@ void main(void)
   //モデムの初期化&LTE接続
   err = init_modem_and_lte();
   if (err) {
-    led_off();
+    led_off(LED2_PIN);
     return;
   }
 
@@ -301,6 +321,7 @@ void main(void)
 
   uint8_t b, prev_auth_mode = 0x00;
   UartBrokerPuts("+++ Ready +++\r\n");
+  led_on(LED3_PIN);
   ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {
     while (UartBrokerGetByte(&b) == 0) {
@@ -315,7 +336,7 @@ void main(void)
     ms_now = k_uptime_get();
     if ((ms_timeout - ms_now) < 0) {
       ms_timeout = ms_now + LED_HEARTBEAT_MS;
-      led_toggle();
+      led1_toggle();
     }
 
     if ((*REG_00_MODE == 0x01) && (prev_auth_mode == 0x00)) {
