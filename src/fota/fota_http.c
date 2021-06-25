@@ -42,7 +42,7 @@ int FotaHttpRun(void)
     return ret;
   }
   // FOTA開始(HTTPで)
-  ret = fota_download_start(DOWNLOAD_HOST, DOWNLOAD_FILE, -1, NULL, 0);
+  ret = fota_download_start(CONFIG_SIPF_FOTA_HOST, CONFIG_SIPF_FOTA_PATH, -1, NULL, 0);
   if (ret != 0) {
     DebugPrint(ERR "fota_download_start() failed: %d\r\n", ret);
     return ret;

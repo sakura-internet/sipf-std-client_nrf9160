@@ -16,15 +16,9 @@
 #include "registers.h"
 #include "sipf/sipf_object.h"
 
-//#define SERVER_NAME "sipf.iot.sakura.ad.jp"
-#define SERVER_NAME CONFIG_SIPF_HTTP_HOST
-#define HTTP_HOST SERVER_NAME
-#define HTTP_CONNECTOR_PATH "/connector/v0"
 #define HTTP_PORT 80
 #define HTTPS_PORT 443
 #define TLS_SEC_TAG 42
-
-#define HTTP_SESSION_KEY_PATH "/auth/v0/session_key"
 
 #define BUFF_SZ (1024)
 
@@ -34,7 +28,7 @@ static uint8_t res_buff[BUFF_SZ];
 static char req_auth_header[256];
 
 /* Setup TLS options on a given socket */
-static int tls_setup(int fd)
+static int tls_setup(int fd, char *host_name)
 {
   int err;
   int verify;
@@ -69,7 +63,7 @@ static int tls_setup(int fd)
     return err;
   }
 
-  err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, SERVER_NAME, strlen(SERVER_NAME));
+  err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, host_name, strlen(host_name));
   if (err) {
     DebugPrint("Failed to Set TLS Hostname, err %d\n", errno);
     return err;
@@ -138,7 +132,7 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
     return -errno;
   }
   // TLSを設定
-  ret = tls_setup(sock);
+  ret = tls_setup(sock, hostname);
   if (ret != 0) {
     DebugPrint(ERR "tls_setup() failed: ret=%d\r\n", ret);
     freeaddrinfo(res);
@@ -146,7 +140,7 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
     return -errno;
   }
   // 接続するよ
-  DebugPrint(INFO "Connect to " HTTP_HOST ":%d\r\n", HTTPS_PORT);
+  DebugPrint(INFO "Connect to %s:%d\r\n", hostname, HTTPS_PORT);
   ret = connect(sock, res->ai_addr, sizeof(struct sockaddr_in));
   if (ret) {
     DebugPrint(ERR "connect() failed: ret=%d errno=%d\r\n", ret, errno);
@@ -175,8 +169,8 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
   const char *headers[] = {"Connection: Close\r\n", "Content-Type: application/octet-stream\r\n", req_auth_header, NULL};
 
   req.method = HTTP_POST;
-  req.url = HTTP_CONNECTOR_PATH;
-  req.host = HTTP_HOST;
+  req.url = CONFIG_SIPF_CONNECTOR_PATH;
+  req.host = CONFIG_SIPF_CONNECTOR_HTTP_HOST;
   req.protocol = "HTTP/1.1";
   req.payload = payload;
   req.payload_len = payload_len;
@@ -185,7 +179,7 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
+  return run_http_request(CONFIG_SIPF_CONNECTOR_HTTP_HOST, &req, 3 * MSEC_PER_SEC, http_res);
 }
 
 int run_get_session_key_http_request(struct http_response *http_res)
@@ -195,8 +189,8 @@ int run_get_session_key_http_request(struct http_response *http_res)
   const char *headers[] = {"Connection: Close\r\n", "Content-Type: text/plain\r\n", "Accept: text/plain\r\n", NULL};
 
   req.method = HTTP_POST;
-  req.url = HTTP_SESSION_KEY_PATH;
-  req.host = HTTP_HOST;
+  req.url = CONFIG_SIPF_AUTH_PATH;
+  req.host = CONFIG_SIPF_AUTH_HOST;
   req.protocol = "HTTP/1.1";
   req.payload = NULL;
   req.payload_len = 0;
@@ -205,7 +199,7 @@ int run_get_session_key_http_request(struct http_response *http_res)
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(SERVER_NAME, &req, 3 * MSEC_PER_SEC, http_res);
+  return run_http_request(CONFIG_SIPF_AUTH_HOST, &req, 3 * MSEC_PER_SEC, http_res);
 }
 
 int SipfClientSetAuthInfo(const char *user_name, const char *passwd)

@@ -12,8 +12,15 @@
 
 menu "SIPF standard client"
 
-config SIPF_HTTP_HOST
-	string "SIPF endpoint host name."
+config SIPF_AUTH_HOST
+	string "SIPF AUTH host name."
+config SIPF_AUTH_PATH
+	string "SIPF AUTH endpoint."
+
+config SIPF_CONNECTOR_HTTP_HOST
+	string "SIPF CONNECTOR HTTP host name."
+config SIPF_CONNECTOR_PATH
+	string "SIPF CONNECTOR HTTP endpoint."
 
 config SIPF_FOTA_HOST
 	string "Application update host name"
