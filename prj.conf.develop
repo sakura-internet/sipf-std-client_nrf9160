@@ -57,13 +57,13 @@ CONFIG_SIPF_APP_VER_MAJOR=0
 CONFIG_SIPF_APP_VER_MINOR=1
 CONFIG_SIPF_APP_VER_RELEASE=0
 
-CONFIG_SIPF_AUTH_HOST="auth.sipf.iot.sakura.ad.jp"
+CONFIG_SIPF_AUTH_HOST="auth.sipf-dev.iot.sakura.ad.jp"
 CONFIG_SIPF_AUTH_PATH="/v0/session_key"
 
-CONFIG_SIPF_CONNECTOR_HTTP_HOST="connector.sipf.iot.sakura.ad.jp"
+CONFIG_SIPF_CONNECTOR_HTTP_HOST="connector.sipf-dev.iot.sakura.ad.jp"
 CONFIG_SIPF_CONNECTOR_PATH="/v0"
 
-CONFIG_SIPF_FOTA_HOST="ota.sipf.iot.sakura.ad.jp"
+CONFIG_SIPF_FOTA_HOST="ota.sipf-dev.iot.sakura.ad.jp"
 CONFIG_SIPF_FOTA_PATH="v0/sipf-std-client_latest.bin"
 
 CONFIG_SIPF_DEBUG_PRINT=n
