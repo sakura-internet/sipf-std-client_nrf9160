@@ -177,6 +177,10 @@ static int led1_toggle(void)
 /***********/
 
 /** MODEM **/
+#define REGISTER_TIMEOUT_MS (60000)
+#define REGISTER_TRY (5)
+static K_SEM_DEFINE(lte_connected, 0, 1);
+
 static int cert_provision(void)
 {
   int err;
@@ -211,6 +215,25 @@ static int cert_provision(void)
   return 0;
 }
 
+static void lte_handler(const struct lte_lc_evt *const evt)
+{
+  switch (evt->type) {
+  case LTE_LC_EVT_NW_REG_STATUS:
+    DebugPrint("evt->nw_reg_status=%d\r\n", evt->nw_reg_status);
+    if ((evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME) && (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+      if (evt->nw_reg_status == LTE_LC_NW_REG_SEARCHING) {
+        UartBrokerPrint("SEARCHING\r\n");
+      }
+      break;
+    }
+    UartBrokerPrint("REGISTERD\r\n");
+    k_sem_give(&lte_connected);
+    break;
+  default:
+    break;
+  }
+}
+
 static int init_modem_and_lte(void)
 {
   static char at_ret[128];
@@ -239,52 +262,68 @@ static int init_modem_and_lte(void)
   DebugPrint("Setting APN.. ");
   err = lte_lc_pdp_context_set(LTE_LC_PDP_TYPE_IP, "sakura", 0, 0, 0);
   if (err) {
-    DebugPrint("Failed to configure to the LTE network, err %d\r\n", err);
-    return err;
-  }
-  DebugPrint("OK\r\n");
-
-  DebugPrint("Lock PLMN.. ");
-  err = at_cmd_write("AT+COPS=1,2,\"44020\"", NULL, 0, NULL);
-  if (err != 0) {
-    DebugPrint("Failed to lock PLMN, err %d\r\n", err);
-    return err;
-  }
-  DebugPrint("OK\r\n");
-
-  DebugPrint("Initialize LTE.. ");
-  err = lte_lc_init();
-  if (err) {
-    DebugPrint("Failed to initializes the modem, err %d\r\n", err);
-    return err;
-  }
-  DebugPrint("OK\r\n");
-
-  DebugPrint("Waiting for network.. ");
-  err = lte_lc_connect();
-  if (err) {
-    DebugPrint("Failed to connect to the LTE network, err %d\r\n", err);
+    UartBrokerPrint("Failed to configure to the LTE network, err %d\r\n", err);
     return err;
   }
   DebugPrint("OK\r\n");
 
   enum at_cmd_state at_state;
-  err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
-  if (err) {
-    DebugPrint("Failed to get ICCID, err %d\r\n", err);
-    return err;
-  }
-  if (at_state == AT_CMD_OK) {
-    char *iccid_top = &at_ret[9]; // ICCIDの先頭
-    for (int i = 0; i < 20; i++) {
-      if (iccid_top[i] == 'F') {
-        iccid_top[i] = 0x00;
-      }
+  for (int i = 0; i < REGISTER_TRY; i++) {
+    DebugPrint("Lock PLMN.. ");
+    err = at_cmd_write("AT+COPS=1,2,\"44020\"", NULL, 0, &at_state);
+    if (err != 0) {
+      UartBrokerPrint("Failed to lock PLMN, err %d\r\n", err);
+      return err;
     }
-    UartBrokerPrint("ICCID: %s\r\n", iccid_top);
-  }
+    if (at_state == AT_CMD_OK) {
+      DebugPrint("OK\r\n");
+    } else {
+      DebugPrint("NG\r\n");
+    }
 
-  return err;
+    DebugPrint("Initialize LTE.. ");
+    err = lte_lc_init();
+    if (err) {
+      UartBrokerPrint("Failed to initializes the modem, err %d\r\n", err);
+      return err;
+    }
+    DebugPrint("OK\r\n");
+
+    UartBrokerPrint("[%d]Waiting for LTE network registerd(TIMEOUT: %d ms)\r\n", i, REGISTER_TIMEOUT_MS);
+    err = lte_lc_connect_async(lte_handler);
+    if (err) {
+      UartBrokerPrint("Failed to connect to the LTE network, err %d\r\n", err);
+      return err;
+    }
+    err = k_sem_take(&lte_connected, K_MSEC(REGISTER_TIMEOUT_MS));
+    if (err == -EAGAIN) {
+      UartBrokerPrint("TIMEOUT\r\n");
+      lte_lc_offline();
+      lte_lc_deinit();
+      continue;
+    } else if (err == 0) {
+      // connected
+      err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
+      if (err) {
+        DebugPrint("Failed to get ICCID, err %d\r\n", err);
+        return err;
+      }
+      if (at_state == AT_CMD_OK) {
+        char *iccid_top = &at_ret[9]; // ICCIDの先頭
+        for (int i = 0; i < 20; i++) {
+          if (iccid_top[i] == 'F') {
+            iccid_top[i] = 0x00;
+          }
+        }
+        UartBrokerPrint("ICCID: %s\r\n", iccid_top);
+      }
+      return 0;
+    } else {
+      //
+      return err;
+    }
+  }
+  UartBrokerPrint(ERR "Faild to LTE Network register.\r\n") return -1;
 }
 /**********/
 

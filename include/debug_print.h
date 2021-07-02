@@ -6,12 +6,13 @@
 #ifndef DEBUG_PRINT_H
 #define DEBUG_PRINT_H
 
-#ifdef CONFIG_SIPF_DEBUG_PRINT
-#include "uart_broker.h"
 #define DBG "DBG:"
 #define INFO "INFO:"
 #define WARN "WARN:"
 #define ERR "ERR:"
+
+#ifdef CONFIG_SIPF_DEBUG_PRINT
+#include "uart_broker.h"
 
 //#define DebugPrint(...) PRINT(__VA_ARGS__)
 #define DebugPrint(...)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                \
@@ -22,10 +23,6 @@
   }
 #else
 #define DebugPrint(...)
-#define DBG
-#define INFO
-#define WARN
-#define ERR
 #endif
 
 #endif
