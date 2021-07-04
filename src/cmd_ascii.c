@@ -343,6 +343,32 @@ static int cmdAsciiCmdGnssEnable(uint8_t *in_buff, uint16_t in_len, uint8_t *out
 }
 
 /**
+ * $$GNSSSTAT コマンド
+ * in_buff: コマンド名より後ろを格納してるバッファ
+ */
+static int cmdAsciiCmdGnssStatus(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_len != 0) {
+    // パラメータ長が違う
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  nrf_gnss_data_frame_t gps_data;
+  gnss_get_data(&gps_data);
+
+  uint8_t *buff = out_buff;
+
+  buff += sprintf(buff, "Fix valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) == NRF_GNSS_PVT_FLAG_FIX_VALID_BIT ? "true" : "false");
+  buff += sprintf(buff, "Leap second valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID) == NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID ? "true" : "false");
+  buff += sprintf(buff, "Sleep between PVT: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) == NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ? "true" : "false");
+  buff += sprintf(buff, "Deadline missed: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) == NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ? "true" : "false");
+  buff += sprintf(buff, "Insuf. time window: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) == NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ? "true" : "false");
+
+  buff += sprintf(buff, "OK\n");
+  return (int)(buff - out_buff);
+}
+
+/**
  * $$GNSSLOC コマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
  */
@@ -387,7 +413,7 @@ static int cmdAsciiCmdGnssNmea(uint8_t *in_buff, uint16_t in_len, uint8_t *out_b
   return (int)(buff - out_buff);
 }
 
-static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {NULL, NULL}};
+static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
 
 int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {
