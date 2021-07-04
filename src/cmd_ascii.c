@@ -9,9 +9,11 @@
 #include <string.h>
 
 #include <zephyr.h>
+#include <logging/log.h>
+
+LOG_MODULE_DECLARE(sipf);
 
 #include "cmd_ascii.h"
-#include "debug_print.h"
 #include "registers.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
@@ -188,7 +190,7 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
   SipfObjectUp objup;
   objup.obj.obj_tagid = tag_id;
   objup.obj.obj_type = type_id;
-  DebugPrint("tag_id: 0x%02x, type: 0x%02x, val=%s\r\n", tag_id, type_id, top_value);
+  LOG_DBG("tag_id: 0x%02x, type: 0x%02x, val=%s", tag_id, type_id, top_value);
   switch (type_id) {
   case OBJ_TYPE_UINT8:
   case OBJ_TYPE_INT8:
@@ -235,7 +237,7 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
       // 変換に失敗
       return cmdCreateResIllParam(out_buff, out_buff_len);
     }
-    DebugPrint("0x%02x\r\n", buff_work[i]);
+    LOG_DBG("0x%02x", buff_work[i]);
   }
 
   objup.obj.value_len = val_str_len / 2;
@@ -250,7 +252,7 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
     }
     len += sprintf(&out_buff[len], "\r\nOK\r\n");
   } else {
-    DebugPrint("SipfClientObjUp() failed: %d\r\n", err);
+    LOG_ERR("SipfClientObjUp() failed: %d", err);
     return cmdCreateResNg(out_buff, out_buff_len);
   }
   return len;

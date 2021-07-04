@@ -1,13 +1,7 @@
 #
-# Copyright (c) 2021 Sakura Internet Inc.
+# Copyright (c) 2021 SAKURA internet Inc.
 #
 # SPDX-License-Identifier: MIT
-#
-
-#
-# Copyright (c) 2019 Nordic Semiconductor ASA
-#
-# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
 menu "SIPF standard client"
@@ -36,10 +30,6 @@ config SIPF_FOTA_PATH
 	  if the file is stored in http://foo.bar/update.bin the value
 	  of this configuration should be 'update.bin'
 
-config SIPF_DEBUG_PRINT
-	bool
-	prompt "Use DebugPrint() functions."
-
 config SIPF_APP_TYPE
 	int "Application type"
 
@@ -60,8 +50,22 @@ config SIPF_APP_VER_RELEASE
 #	bool
 #	prompt "Use HTTPS for download"
 
+
 endmenu
 
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu
+
+module = SIPF
+module-str = SIPF
+source "subsys/logging/Kconfig.template.log_config"
+
+
+module = FOTA
+module-str = Firmware over the Air
+source "subsys/logging/Kconfig.template.log_config"
+
+module = GNSS
+module-str = GNSS
+source "subsys/logging/Kconfig.template.log_config"
