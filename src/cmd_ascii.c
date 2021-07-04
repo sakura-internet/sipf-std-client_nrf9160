@@ -392,7 +392,7 @@ static int cmdAsciiCmdGnssLocation(uint8_t *in_buff, uint16_t in_len, uint8_t *o
     // FIXED
     buff += sprintf(buff, "A,");
   }
-  buff += sprintf(buff, "%f,%f,%f,%f,%f,%02u-%02u-%02uT%02u:%02u:%02uZ", gps_data.pvt.longitude, gps_data.pvt.latitude, gps_data.pvt.altitude, gps_data.pvt.speed, gps_data.pvt.heading, gps_data.pvt.datetime.year, gps_data.pvt.datetime.month, gps_data.pvt.datetime.day, gps_data.pvt.datetime.hour, gps_data.pvt.datetime.minute, gps_data.pvt.datetime.seconds);
+  buff += sprintf(buff, "%.6f,%.6f,%f,%f,%f,%04u-%02u-%02uT%02u:%02u:%02uZ", gps_data.pvt.longitude, gps_data.pvt.latitude, gps_data.pvt.altitude, gps_data.pvt.speed, gps_data.pvt.heading, gps_data.pvt.datetime.year, gps_data.pvt.datetime.month, gps_data.pvt.datetime.day, gps_data.pvt.datetime.hour, gps_data.pvt.datetime.minute, gps_data.pvt.datetime.seconds);
   buff += sprintf(buff, "\r\nOK\r\n");
   return (int)(buff - out_buff);
 }
