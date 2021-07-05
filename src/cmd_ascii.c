@@ -15,6 +15,7 @@
 #include "registers.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
+#include "gnss/gnss.h"
 
 static uint8_t buff_work[256];
 /**/
@@ -136,7 +137,6 @@ static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, ui
   }
 
   return sprintf(out_buff, "%02x\r\nOK\r\n", val);
-  ;
 }
 
 static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
@@ -310,7 +310,110 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
   }
 }
 
-static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {NULL, NULL}};
+/**
+ * $$GNSSEN コマンド
+ * in_buff: コマンド名より後ろを格納してるバッファ
+ */
+static int cmdAsciiCmdGnssEnable(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_buff[0] != 0x20) {
+    // 先頭がスペースじゃない
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+  if (in_len != 2) {
+    // パラメータ長が違う
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  if (in_buff[1] == '0') {
+    // GPS無効
+    if (gnss_stop() != 0) {
+      return cmdCreateResNg(out_buff, out_buff_len);
+    }
+  } else if (in_buff[1] == '1') {
+    // GPS有効
+    if (gnss_start() != 0) {
+      return cmdCreateResNg(out_buff, out_buff_len);
+    }
+  } else {
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  return cmdCreateResOk(out_buff, out_buff_len);
+}
+
+/**
+ * $$GNSSSTAT コマンド
+ * in_buff: コマンド名より後ろを格納してるバッファ
+ */
+static int cmdAsciiCmdGnssStatus(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_len != 0) {
+    // パラメータ長が違う
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  nrf_gnss_data_frame_t gps_data;
+  gnss_get_data(&gps_data);
+
+  uint8_t *buff = out_buff;
+
+  buff += sprintf(buff, "Fix valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) == NRF_GNSS_PVT_FLAG_FIX_VALID_BIT ? "true" : "false");
+  buff += sprintf(buff, "Leap second valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID) == NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID ? "true" : "false");
+  buff += sprintf(buff, "Sleep between PVT: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) == NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ? "true" : "false");
+  buff += sprintf(buff, "Deadline missed: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) == NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ? "true" : "false");
+  buff += sprintf(buff, "Insuf. time window: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) == NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ? "true" : "false");
+
+  buff += sprintf(buff, "OK\n");
+  return (int)(buff - out_buff);
+}
+
+/**
+ * $$GNSSLOC コマンド
+ * in_buff: コマンド名より後ろを格納してるバッファ
+ */
+static int cmdAsciiCmdGnssLocation(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_len != 0) {
+    // パラメータ長が違う
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  bool got_fix;
+  nrf_gnss_data_frame_t gps_data;
+  got_fix = gnss_get_data(&gps_data);
+
+  uint8_t *buff = out_buff;
+
+  if (!got_fix) {
+    // NOTFIXED
+    buff += sprintf(buff, "V,");
+  } else {
+    // FIXED
+    buff += sprintf(buff, "A,");
+  }
+  buff += sprintf(buff, "%.6f,%.6f,%f,%f,%f,%04u-%02u-%02uT%02u:%02u:%02uZ", gps_data.pvt.longitude, gps_data.pvt.latitude, gps_data.pvt.altitude, gps_data.pvt.speed, gps_data.pvt.heading, gps_data.pvt.datetime.year, gps_data.pvt.datetime.month, gps_data.pvt.datetime.day, gps_data.pvt.datetime.hour, gps_data.pvt.datetime.minute, gps_data.pvt.datetime.seconds);
+  buff += sprintf(buff, "\r\nOK\r\n");
+  return (int)(buff - out_buff);
+}
+
+/**
+ * $$GNSSNMEA コマンド
+ * in_buff: コマンド名より後ろを格納してるバッファ
+ */
+static int cmdAsciiCmdGnssNmea(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_len != 0) {
+    // パラメータ長が違う
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+  uint8_t *buff = out_buff;
+  buff += gnss_strcpy_nmea((char *)out_buff);
+  buff += sprintf(buff, "\r\nOK\r\n");
+  return (int)(buff - out_buff);
+}
+
+static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
 
 int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {

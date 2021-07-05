@@ -24,6 +24,7 @@
 #include "debug_print.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
+#include "gnss/gnss.h"
 #include "uart_broker.h"
 
 #include "registers.h"
@@ -259,6 +260,30 @@ static int init_modem_and_lte(void)
     return err;
   }
 
+  DebugPrint("Set system mode.. ");
+  err = at_cmd_write("AT%XSYSTEMMODE=1,0,1,0", NULL, 0, NULL);
+  if (err != 0) {
+    DebugPrint("Failed to set system mode, err %d\r\n", err);
+    return err;
+  }
+  DebugPrint("OK\r\n");
+
+  DebugPrint("Set XMAGPIO... ");
+  err = at_cmd_write("AT\%XMAGPIO=1,0,0,1,1,1574,1577", NULL, 0, NULL);
+  if (err != 0) {
+    DebugPrint("Failed to set XMAGPIO, err %d\r\n", err);
+    return err;
+  }
+  DebugPrint("OK\r\n");
+
+  DebugPrint("Set XCOEX0... ");
+  err = at_cmd_write("AT\%XCOEX0=1,1,1565,1586", NULL, 0, NULL);
+  if (err != 0) {
+    DebugPrint("Failed to set XCOEX0, err %d\r\n", err);
+    return err;
+  }
+  DebugPrint("OK\r\n");
+
   DebugPrint("Setting APN.. ");
   err = lte_lc_pdp_context_set(LTE_LC_PDP_TYPE_IP, "sakura", 0, 0, 0);
   if (err) {
@@ -303,6 +328,17 @@ static int init_modem_and_lte(void)
       continue;
     } else if (err == 0) {
       // connected
+
+      // PSMの設定
+      DebugPrint("Enable PSM.. ");
+      err = lte_lc_psm_req(true);
+      if (err) {
+        DebugPrint("PSM request failed, error: %d\r\n", err);
+      } else {
+        DebugPrint("PSM enabled\r\n");
+      }
+
+      // ICCIDの取得
       err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
       if (err) {
         DebugPrint("Failed to get ICCID, err %d\r\n", err);
@@ -323,7 +359,8 @@ static int init_modem_and_lte(void)
       return err;
     }
   }
-  UartBrokerPrint(ERR "Faild to LTE Network register.\r\n") return -1;
+  UartBrokerPrint(ERR "Faild to LTE Network register.\r\n");
+  return -1;
 }
 /**********/
 
@@ -353,6 +390,11 @@ void main(void)
   if (err) {
     led_off(LED2_PIN);
     return;
+  }
+
+  // GNSSの初期化
+  if (gnss_init() != 0) {
+    UartBrokerPuts("Failed to initialize GNSS peripheral\n");
   }
 
   // LTEつながるならOKなFWよね
@@ -388,6 +430,9 @@ void main(void)
       }
     }
     prev_auth_mode = *REG_00_MODE;
+
+    // GNSSイベントの処理
+    gnss_poll();
 
     k_sleep(K_MSEC(1));
   }
