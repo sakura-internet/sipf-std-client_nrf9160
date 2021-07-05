@@ -11,8 +11,10 @@
 #include <net/socket.h>
 #include <net/tls_credentials.h>
 #include <sys/base64.h>
+#include <logging/log.h>
 
-#include "debug_print.h"
+LOG_MODULE_DECLARE(sipf);
+
 #include "registers.h"
 #include "sipf/sipf_object.h"
 
@@ -53,7 +55,7 @@ static int tls_setup(int fd, const char *host_name)
 
   err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
   if (err) {
-    DebugPrint("Failed to setup peer verification, err %d\n", errno);
+    LOG_ERR("Failed to setup peer verification, err %d", errno);
     return err;
   }
 
@@ -62,13 +64,13 @@ static int tls_setup(int fd, const char *host_name)
    */
   err = setsockopt(fd, SOL_TLS, TLS_SEC_TAG_LIST, tls_sec_tag, sizeof(tls_sec_tag));
   if (err) {
-    DebugPrint("Failed to setup TLS sec tag, err %d\n", errno);
+    LOG_ERR("Failed to setup TLS sec tag, err %d", errno);
     return err;
   }
 
   err = setsockopt(fd, SOL_TLS, TLS_HOSTNAME, host_name, strlen(host_name));
   if (err) {
-    DebugPrint("Failed to Set TLS Hostname, err %d\n", errno);
+    LOG_ERR("Failed to Set TLS Hostname, err %d", errno);
     return err;
   }
 
@@ -80,7 +82,7 @@ static int tls_setup(int fd, const char *host_name)
 static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
 {
   if (resp->data_len > 0) {
-    DebugPrint("HTTP response has come\r\n");
+    LOG_DBG("HTTP response has come");
     memcpy(user_data, resp, sizeof(struct http_response));
   }
 }
@@ -127,30 +129,30 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
   // 接続先をセットアップするよ
   ret = getaddrinfo(hostname, NULL, &hints, &res);
   if (ret) {
-    DebugPrint(ERR "getaddrinfo failed: ret=%d errno=%d\r\n", ret, errno);
+    LOG_ERR("getaddrinfo failed: ret=%d errno=%d", ret, errno);
     return -errno;
   }
   ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTPS_PORT);
 
   sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
   if (sock < 0) {
-    DebugPrint(ERR "socket() failed: ret=%d errno=%d\r\n", ret, errno);
+    LOG_ERR("socket() failed: ret=%d errno=%d", ret, errno);
     freeaddrinfo(res);
     return -errno;
   }
   // TLSを設定
   ret = tls_setup(sock, hostname);
   if (ret != 0) {
-    DebugPrint(ERR "tls_setup() failed: ret=%d\r\n", ret);
+    LOG_ERR("tls_setup() failed: ret=%d", ret);
     freeaddrinfo(res);
     (void)close(sock);
     return -errno;
   }
   // 接続するよ
-  DebugPrint(INFO "Connect to %s:%d\r\n", hostname, HTTPS_PORT);
+  LOG_INF("Connect to %s:%d", hostname, HTTPS_PORT);
   ret = connect(sock, res->ai_addr, sizeof(struct sockaddr_in));
   if (ret) {
-    DebugPrint(ERR "connect() failed: ret=%d errno=%d\r\n", ret, errno);
+    LOG_ERR("connect() failed: ret=%d errno=%d", ret, errno);
     freeaddrinfo(res);
     (void)close(sock);
     return -errno;
@@ -169,7 +171,7 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
     //パスワード認証モードの場合
     createAuthInfoFromRegister(); //レジスタから認証情報を生成する
   }
-  DebugPrint("auth: %s\r\n", req_auth_header);
+  LOG_DBG("auth: %s", req_auth_header);
 
   struct http_request req;
   memset(&req, 0, sizeof(req));
@@ -228,19 +230,19 @@ int SipfClientGetAuthInfo(void)
   static struct http_response http_res;
   ret = run_get_session_key_http_request(&http_res);
 
-  DebugPrint(INFO "run_get_session_key_http_request(): %d\r\n", ret);
+  LOG_INF("run_get_session_key_http_request(): %d", ret);
   if (ret < 0) {
     return ret;
   }
 
-  DebugPrint(DBG "Response status %s\r\n", http_res.http_status);
-  DebugPrint("content-length: %d\r\n", http_res.content_length);
-#ifdef CONFIG_SIPF_DEBUG_PRINT
+  // FIXME: CONFIG_SIPF_LOG_LEVEL をつかっていい感じに抑制する
+  LOG_DBG("Response status %s", http_res.http_status);
+  LOG_DBG("content-length: %d", http_res.content_length);
   for (int i = 0; i < http_res.content_length; i++) {
-    DebugPrint("0x%02x ", http_res.body_start[i]);
+    LOG_DBG("0x%02x ", http_res.body_start[i]);
   }
-  DebugPrint("\r\n");
-#endif
+  // FIXME: ここまで
+
   if (strcmp(http_res.http_status, "OK") != 0) {
     // 200 OK以外のレスポンスが返ってきた
     return -1;
@@ -258,7 +260,7 @@ int SipfClientGetAuthInfo(void)
       }
     }
   }
-  DebugPrint("user_name=%s passwd=%s\r\n", user_name, passwd);
+  LOG_DBG("user_name=%s passwd=%s", user_name, passwd);
   if (passwd != NULL) {
     return SipfClientSetAuthInfo(user_name, passwd);
   }
@@ -309,17 +311,16 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
   static struct http_response http_res;
   ret = run_connector_http_request(req_buff, sz_packet, &http_res);
 
-  DebugPrint(INFO "run_connector_http_request(): %d\r\n", ret);
+  LOG_INF("run_connector_http_request(): %d", ret);
   if (ret < 0) {
     return ret;
   }
 
-  DebugPrint(DBG "Response status %s\r\n", http_res.http_status);
-  DebugPrint("content-length: %d\r\n", http_res.content_length);
+  LOG_DBG("Response status %s", http_res.http_status);
+  LOG_DBG("content-length: %d", http_res.content_length);
   for (int i = 0; i < http_res.content_length; i++) {
-    DebugPrint("0x%02x ", http_res.body_start[i]);
+    LOG_DBG("0x%02x ", http_res.body_start[i]);
   }
-  DebugPrint("\r\n");
 
   // OBJID_NOTIFICATIONをパース
   uint8_t *sipf_obj_head = &http_res.body_start[0];

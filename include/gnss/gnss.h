@@ -18,7 +18,7 @@ int gnss_start();
 int gnss_stop();
 void gnss_poll();
 bool gnss_get_data(nrf_gnss_data_frame_t *gps_data); // TRUE: fixed, FALSE: not fixed
-int gnss_print_nmea();
+int gnss_log_dbg_nmea();
 int gnss_strcpy_nmea(char *dest);
 
 #endif // GNSS_H

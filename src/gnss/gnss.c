@@ -12,9 +12,12 @@
 #include <modem/at_cmd.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/lte_lc.h>
+#include <logging/log.h>
 
-#include "debug_print.h"
 #include "gnss/gnss.h"
+
+
+LOG_MODULE_REGISTER(gnss, CONFIG_SIPF_LOG_LEVEL);
 
 static int gnss_fd;
 static char nmea_strings[10][NRF_GNSS_NMEA_MAX_LEN];
@@ -38,27 +41,27 @@ static int gnss_ctrl(uint32_t ctrl)
     gnss_fd = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_DGRAM, NRF_PROTO_GNSS);
 
     if (gnss_fd >= 0) {
-      DebugPrint("GNSS Socket created (%d)\n", gnss_fd);
+      LOG_DBG("GNSS Socket created (%d)", gnss_fd);
     } else {
-      DebugPrint("Could not init socket (err: %d)\n", gnss_fd);
+      LOG_ERR("Could not init socket (err: %d)", gnss_fd);
       return -1;
     }
 
     retval = nrf_setsockopt(gnss_fd, NRF_SOL_GNSS, NRF_SO_GNSS_FIX_RETRY, &fix_retry, sizeof(fix_retry));
     if (retval != 0) {
-      DebugPrint("Failed to set fix retry value (err: %d)\n", retval);
+      LOG_ERR("Failed to set fix retry value (err: %d)", retval);
       return -1;
     }
 
     retval = nrf_setsockopt(gnss_fd, NRF_SOL_GNSS, NRF_SO_GNSS_FIX_INTERVAL, &fix_interval, sizeof(fix_interval));
     if (retval != 0) {
-      DebugPrint("Failed to set fix interval value (err: %d)\n", retval);
+      LOG_ERR("Failed to set fix interval value (err: %d)", retval);
       return -1;
     }
 
     retval = nrf_setsockopt(gnss_fd, NRF_SOL_GNSS, NRF_SO_GNSS_NMEA_MASK, &nmea_mask, sizeof(nmea_mask));
     if (retval != 0) {
-      DebugPrint("Failed to set nmea mask (err: %d)\n", retval);
+      LOG_ERR("Failed to set nmea mask (err: %d)", retval);
       return -1;
     }
   }
@@ -66,7 +69,7 @@ static int gnss_ctrl(uint32_t ctrl)
   if (ctrl == GNSS_START) {
     retval = nrf_setsockopt(gnss_fd, NRF_SOL_GNSS, NRF_SO_GNSS_START, &delete_mask, sizeof(delete_mask));
     if (retval != 0) {
-      DebugPrint("Failed to start GPS (err: %d)\n", retval);
+      LOG_ERR("Failed to start GPS (err: %d)", retval);
       return -1;
     }
   }
@@ -74,7 +77,7 @@ static int gnss_ctrl(uint32_t ctrl)
   if (ctrl == GNSS_STOP) {
     retval = nrf_setsockopt(gnss_fd, NRF_SOL_GNSS, NRF_SO_GNSS_STOP, &delete_mask, sizeof(delete_mask));
     if (retval != 0) {
-      DebugPrint("Failed to stop GPS (err: %d)\n", retval);
+      LOG_ERR("Failed to stop GPS (err: %d)", retval);
       return -1;
     }
   }
@@ -142,10 +145,10 @@ bool gnss_get_data(nrf_gnss_data_frame_t *gps_data)
   return got_fix;
 }
 
-int gnss_print_nmea()
+int gnss_log_dbg_nmea()
 {
   for (int i = 0; i < nmea_string_cnt; ++i) {
-    DebugPrint("%s", nmea_strings[i]);
+    LOG_DBG("%s", nmea_strings[i]);
   }
   return nmea_string_cnt;
 }

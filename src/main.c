@@ -16,12 +16,12 @@
 #include <modem/nrf_modem_lib.h>
 #include <net/socket.h>
 #include <net/tls_credentials.h>
+#include <logging/log.h>
 
 #include <drivers/gpio.h>
 #include <power/reboot.h>
 
 #include "cmd.h"
-#include "debug_print.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
 #include "gnss/gnss.h"
@@ -29,6 +29,8 @@
 
 #include "registers.h"
 #include "version.h"
+
+LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 
 /** peripheral **/
 #define LED_HEARTBEAT_MS (500)
@@ -66,13 +68,13 @@ int at_comms_init(void)
 
   err = at_cmd_init();
   if (err) {
-    DebugPrint("Failed to initialize AT commands, err %d\r\n", err);
+    LOG_ERR("Failed to initialize AT commands, err %d", err);
     return err;
   }
 
   err = at_notif_init();
   if (err) {
-    DebugPrint("Failed to initialize AT notifications, err %d\r\n", err);
+    LOG_ERR("Failed to initialize AT notifications, err %d", err);
     return err;
   }
 
@@ -82,7 +84,7 @@ int at_comms_init(void)
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
 {
   //リブート
-  UartBrokerPrint("RESET_REQ_DETECT\r\n");
+  UartBrokerPrint("RESET_REQ_DETECT\n");
   sys_reboot(SYS_REBOOT_COLD);
 }
 
@@ -91,7 +93,7 @@ static int wake_in_init(void)
   const struct device *dev;
   dev = device_get_binding(WAKE_IN_PORT);
   if (dev == 0) {
-    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    LOG_ERR("Nordic nRF GPIO driver was not found!");
     return 1;
   }
   int ret;
@@ -114,28 +116,27 @@ static int led_init(void)
 
   dev = device_get_binding(LED_PORT);
   if (dev == 0) {
-    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    LOG_ERR("Nordic nRF GPIO driver was not found!");
     return 1;
   }
   int ret;
   /* Initialize LED1  */
   ret = gpio_pin_configure(dev, LED1_PIN, LED1_FLAGS);
-  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED1_PIN, ret);
+  LOG_DBG("gpio_pin_configure(%d): %d", LED1_PIN, ret);
   ret = gpio_pin_set(dev, LED1_PIN, 0);
-  DebugPrint("gpio_pin_set(%d): %d\r\n", LED1_PIN, ret);
+  LOG_DBG("gpio_pin_set(%d): %d", LED1_PIN, ret);
 
   /* Initialize LED2  */
   ret = gpio_pin_configure(dev, LED2_PIN, LED2_FLAGS);
-  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED2_PIN, ret);
+  LOG_DBG("gpio_pin_configure(%d): %d", LED2_PIN, ret);
   ret = gpio_pin_set(dev, LED2_PIN, 0);
-  DebugPrint("gpio_pin_set(%d): %d\r\n", LED2_PIN, ret);
+  LOG_DBG("gpio_pin_set(%d): %d", LED2_PIN, ret);
 
   /* Initialize LED3  */
   ret = gpio_pin_configure(dev, LED3_PIN, LED3_FLAGS);
-  DebugPrint("gpio_pin_configure(%d): %d\r\n", LED3_PIN, ret);
+  LOG_DBG("gpio_pin_configure(%d): %d", LED3_PIN, ret);
   ret = gpio_pin_set(dev, LED3_PIN, 0);
-  DebugPrint("gpio_pin_set(%d): %d\r\n", LED3_PIN, ret);
-
+  LOG_DBG("gpio_pin_set(%d): %d", LED3_PIN, ret);
   return 0;
 }
 
@@ -143,7 +144,7 @@ static int led_on(gpio_pin_t pin)
 {
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
-    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    LOG_ERR("Nordic nRF GPIO driver was not found!");
     return 1;
   }
   gpio_pin_set(dev, pin, 1);
@@ -154,7 +155,7 @@ static int led_off(gpio_pin_t pin)
 {
   const struct device *dev = device_get_binding(LED_PORT);
   if (dev == 0) {
-    DebugPrint("Nordic nRF GPIO driver was not found!\n");
+    LOG_ERR("Nordic nRF GPIO driver was not found!");
     return 1;
   }
   gpio_pin_set(dev, pin, 0);
@@ -168,7 +169,7 @@ static int led1_toggle(void)
 
   dev = device_get_binding(LED_PORT);
   if (dev == 0) {
-    printk("Nordic nRF GPIO driver was not found!\n");
+    LOG_ERR("Nordic nRF GPIO driver was not found!");
     return 1;
   }
   gpio_pin_set(dev, LED1_PIN, val);
@@ -190,7 +191,7 @@ static int cert_provision(void)
 
   err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists, &unused);
   if (err) {
-    DebugPrint("Failed to check for certificates err %d\n", err);
+    LOG_ERR("Failed to check for certificates err %d", err);
     return err;
   }
 
@@ -200,16 +201,16 @@ static int cert_provision(void)
      */
     err = modem_key_mgmt_delete(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN);
     if (err) {
-      DebugPrint("Failed to delete existing certificate, err %d\n", err);
+      LOG_ERR("Failed to delete existing certificate, err %d", err);
     }
   }
 
-  DebugPrint("Provisioning certificate\n");
+  LOG_DBG("Provisioning certificate");
 
   /*  Provision certificate to the modem */
   err = modem_key_mgmt_write(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, cert, sizeof(cert) - 1);
   if (err) {
-    DebugPrint("Failed to provision certificate, err %d\n", err);
+    LOG_ERR("Failed to provision certificate, err %d", err);
     return err;
   }
 
@@ -220,14 +221,14 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 {
   switch (evt->type) {
   case LTE_LC_EVT_NW_REG_STATUS:
-    DebugPrint("evt->nw_reg_status=%d\r\n", evt->nw_reg_status);
+    LOG_DBG("evt->nw_reg_status=%d\n", evt->nw_reg_status);
     if ((evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME) && (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
       if (evt->nw_reg_status == LTE_LC_NW_REG_SEARCHING) {
-        UartBrokerPrint("SEARCHING\r\n");
+        UartBrokerPrint("SEARCHING\n");
       }
       break;
     }
-    UartBrokerPrint("REGISTERD\r\n");
+    UartBrokerPrint("REGISTERD\n");
     k_sem_give(&lte_connected);
     break;
   default:
@@ -242,87 +243,85 @@ static int init_modem_and_lte(void)
 
   err = nrf_modem_lib_init(NORMAL_MODE);
   if (err) {
-    DebugPrint("Failed to initialize modem library!");
+    LOG_ERR("Failed to initialize modem library!");
     return err;
   }
 
   /* Initialize AT comms in order to provision the certificate */
   err = at_comms_init();
   if (err) {
-    DebugPrint("Faild to at_comms_init(): %d\r\n", err);
+    LOG_ERR("Faild to at_comms_init(): %d", err);
     return err;
   }
 
   /* Provision certificates before connecting to the LTE network */
   err = cert_provision();
   if (err) {
-    DebugPrint("Faild to cert_provision(): %d\r\n", err);
+    LOG_ERR("Faild to cert_provision(): %d", err);
     return err;
   }
 
-  DebugPrint("Set system mode.. ");
   err = at_cmd_write("AT%XSYSTEMMODE=1,0,1,0", NULL, 0, NULL);
   if (err != 0) {
-    DebugPrint("Failed to set system mode, err %d\r\n", err);
+    LOG_ERR("Failed to set system mode, err %d", err);
     return err;
   }
-  DebugPrint("OK\r\n");
+  LOG_DBG("Setting system mode OK");
 
-  DebugPrint("Set XMAGPIO... ");
   err = at_cmd_write("AT\%XMAGPIO=1,0,0,1,1,1574,1577", NULL, 0, NULL);
   if (err != 0) {
-    DebugPrint("Failed to set XMAGPIO, err %d\r\n", err);
+    LOG_ERR("Failed to set XMAGPIO, err %d", err);
     return err;
   }
-  DebugPrint("OK\r\n");
+  LOG_DBG("Configure MAGPIO OK");
 
-  DebugPrint("Set XCOEX0... ");
   err = at_cmd_write("AT\%XCOEX0=1,1,1565,1586", NULL, 0, NULL);
   if (err != 0) {
-    DebugPrint("Failed to set XCOEX0, err %d\r\n", err);
+    LOG_ERR("Failed to set XCOEX0, err %d", err);
     return err;
   }
-  DebugPrint("OK\r\n");
+  LOG_DBG("Configure pin OK");
 
-  DebugPrint("Setting APN.. ");
+
   err = lte_lc_pdp_context_set(LTE_LC_PDP_TYPE_IP, "sakura", 0, 0, 0);
   if (err) {
-    UartBrokerPrint("Failed to configure to the LTE network, err %d\r\n", err);
+    LOG_ERR("Failed to configure to the LTE PDP context, err %d", err);
     return err;
   }
-  DebugPrint("OK\r\n");
+  LOG_DBG("Setting APN OK");
 
   enum at_cmd_state at_state;
   for (int i = 0; i < REGISTER_TRY; i++) {
-    DebugPrint("Lock PLMN.. ");
+
     err = at_cmd_write("AT+COPS=1,2,\"44020\"", NULL, 0, &at_state);
     if (err != 0) {
-      UartBrokerPrint("Failed to lock PLMN, err %d\r\n", err);
+      LOG_ERR("Execute to lock PLMN error, err %d", err);
       return err;
     }
     if (at_state == AT_CMD_OK) {
-      DebugPrint("OK\r\n");
+      LOG_DBG("Lock PLMN OK");
     } else {
-      DebugPrint("NG\r\n");
+      LOG_ERR("Failed to lock PLMN, err %d", err);
     }
 
-    DebugPrint("Initialize LTE.. ");
+    LOG_DBG("Initialize LTE");
     err = lte_lc_init();
     if (err) {
-      UartBrokerPrint("Failed to initializes the modem, err %d\r\n", err);
+      LOG_ERR("Failed to initializes the modem, err %d", err);
       return err;
     }
-    DebugPrint("OK\r\n");
+    LOG_DBG("Initialize LTE OK");
 
-    UartBrokerPrint("[%d]Waiting for LTE network registerd(TIMEOUT: %d ms)\r\n", i, REGISTER_TIMEOUT_MS);
+    LOG_INF("[%d] Trying to attach to LTE network (TIMEOUT: %d ms)", i, REGISTER_TIMEOUT_MS);
+    UartBrokerPrint("Trying to attach to LTE network (TIMEOUT: %d ms)\r\n", REGISTER_TIMEOUT_MS);
     err = lte_lc_connect_async(lte_handler);
     if (err) {
-      UartBrokerPrint("Failed to connect to the LTE network, err %d\r\n", err);
+      LOG_ERR("Failed to attatch to the LTE network, err %d", err);
       return err;
     }
     err = k_sem_take(&lte_connected, K_MSEC(REGISTER_TIMEOUT_MS));
     if (err == -EAGAIN) {
-      UartBrokerPrint("TIMEOUT\r\n");
+      UartBrokerPrint("TIMEOUT\n");
       lte_lc_offline();
       lte_lc_deinit();
       continue;
@@ -330,18 +329,17 @@ static int init_modem_and_lte(void)
       // connected
 
       // PSMの設定
-      DebugPrint("Enable PSM.. ");
       err = lte_lc_psm_req(true);
       if (err) {
-        DebugPrint("PSM request failed, error: %d\r\n", err);
+        LOG_ERR("PSM request failed, error: %d", err);
       } else {
-        DebugPrint("PSM enabled\r\n");
+        LOG_DBG("PSM is enabled");
       }
 
       // ICCIDの取得
       err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
       if (err) {
-        DebugPrint("Failed to get ICCID, err %d\r\n", err);
+        LOG_ERR("Failed to get ICCID, err %d", err);
         return err;
       }
       if (at_state == AT_CMD_OK) {
@@ -351,7 +349,7 @@ static int init_modem_and_lte(void)
             iccid_top[i] = 0x00;
           }
         }
-        UartBrokerPrint("ICCID: %s\r\n", iccid_top);
+        UartBrokerPrint("ICCID: %s\n", iccid_top);
       }
       return 0;
     } else {
@@ -359,7 +357,8 @@ static int init_modem_and_lte(void)
       return err;
     }
   }
-  UartBrokerPrint(ERR "Faild to LTE Network register.\r\n");
+
+  LOG_ERR("Faild to attach to LTE Network");
   return -1;
 }
 /**********/
@@ -376,7 +375,7 @@ void main(void)
   // UartBrokerの初期化(以降、Debug系の出力も可能)
   uart_dev = device_get_binding(UART_LABEL);
   UartBrokerInit(uart_dev);
-  UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
+  UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
 
   // LEDの初期化
   led_init();
@@ -401,8 +400,9 @@ void main(void)
   boot_write_img_confirmed();
 
   uint8_t b, prev_auth_mode = 0x00;
-  UartBrokerPuts("+++ Ready +++\r\n");
+  UartBrokerPuts("+++ Ready +++\n");
   led_on(LED3_PIN);
+
   ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {
     while (UartBrokerGetByte(&b) == 0) {
@@ -423,7 +423,7 @@ void main(void)
     if ((*REG_00_MODE == 0x01) && (prev_auth_mode == 0x00)) {
       // 認証モードがIPアドレス認証に切り替えられた
       err = SipfClientGetAuthInfo();
-      DebugPrint(DBG "SipfClientGetAuthInfo(): %d\r\n", err);
+      LOG_DBG("SipfClientGetAuthInfo(): %d", err);
       if (err < 0) {
         // IPアドレス認証に失敗した
         *REG_00_MODE = 0x00; // モードが切り替えられなかった
