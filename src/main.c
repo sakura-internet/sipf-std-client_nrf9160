@@ -422,7 +422,7 @@ void main(void)
     if ((*REG_00_MODE == 0x01) && (prev_auth_mode == 0x00)) {
       // 認証モードがIPアドレス認証に切り替えられた
       err = SipfClientGetAuthInfo();
-      LOG_ERR("SipfClientGetAuthInfo(): %d", err);
+      LOG_DBG("SipfClientGetAuthInfo(): %d", err);
       if (err < 0) {
         // IPアドレス認証に失敗した
         *REG_00_MODE = 0x00; // モードが切り替えられなかった
