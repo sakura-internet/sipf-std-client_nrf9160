@@ -28,7 +28,7 @@ static uint8_t res_buff[BUFF_SZ];
 static char req_auth_header[256];
 
 /* Setup TLS options on a given socket */
-static int tls_setup(int fd, char *host_name)
+static int tls_setup(int fd, const char *host_name)
 {
   int err;
   int verify;
