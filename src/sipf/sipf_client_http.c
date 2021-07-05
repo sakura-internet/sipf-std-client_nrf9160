@@ -16,6 +16,9 @@
 #include "registers.h"
 #include "sipf/sipf_object.h"
 
+#define HTTP_BASIC_AUTH_HEADER_PREFIX "Authorization: Basic "
+#define NEWLINE_STRING "\r\n"
+
 #define HTTP_PORT 80
 #define HTTPS_PORT 443
 #define TLS_SEC_TAG 42
@@ -99,13 +102,17 @@ static int createAuthInfoFromRegister(void)
   memcpy(&tmp[*REG_00_UN_LEN + 1], REG_00_PASSWORD, *REG_00_PW_LEN);
   len = *REG_00_UN_LEN + *REG_00_PW_LEN + 1;
 
-  strncpy(req_auth_header, "Authorization: BASIC ", 21);
-  if (base64_encode(&req_auth_header[21], 210, &olen, tmp, len) < 0) {
+  strncpy(req_auth_header, HTTP_BASIC_AUTH_HEADER_PREFIX, strlen(HTTP_BASIC_AUTH_HEADER_PREFIX));
+  if (base64_encode(&req_auth_header[21], sizeof(req_auth_header) - 22, &olen, tmp, len) < 0) {
     return -1;
   }
-  len = 21 + olen;
-  strncpy(&req_auth_header[len], "\r\n", 2);
-  return len + 2;
+  len = strlen(HTTP_BASIC_AUTH_HEADER_PREFIX) + olen;
+
+  strncpy(&req_auth_header[len], NEWLINE_STRING, strlen(NEWLINE_STRING));
+  len += strlen(NEWLINE_STRING);
+
+  req_auth_header[len] = '\0'; // strncpy does not terminate
+  return len;
 }
 
 static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res)
