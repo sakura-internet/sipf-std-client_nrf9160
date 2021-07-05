@@ -313,6 +313,7 @@ static int init_modem_and_lte(void)
     LOG_DBG("Initialize LTE OK");
 
     LOG_INF("[%d] Trying to attach to LTE network (TIMEOUT: %d ms)", i, REGISTER_TIMEOUT_MS);
+    UartBrokerPrint("Trying to attach to LTE network (TIMEOUT: %d ms)\r\n", REGISTER_TIMEOUT_MS);
     err = lte_lc_connect_async(lte_handler);
     if (err) {
       LOG_ERR("Failed to attatch to the LTE network, err %d", err);
