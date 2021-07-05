@@ -1,0 +1,39 @@
+box: chibiegg/sdk-nrf:1.5.1
+
+build:
+  steps:
+    - script:
+        name: echo gcc version
+        code : |
+          arm-none-eabi-gcc -v
+    - script:
+        name: build binalies
+        code: |
+          bash wercker.sh
+          cp -Rv dist/bin/ "${WERCKER_OUTPUT_DIR}"
+          cp -v  dist/sipf-std-client_nrf9160.tar.gz "${WERCKER_OUTPUT_DIR}"
+
+  after-steps:
+    - slack-notifier:
+        url: $SLACK_WEBHOOK_URL
+        channel: "#iot-pf-firmware-ci"
+        username: werckerbot
+
+
+deploy:
+  box: ubuntu:20.04
+  steps:
+    - script:
+        name: install curl 
+        code: |
+          apt update && apt install -y curl
+    - script:
+        name: upload to slack
+        code: |
+          curl -F file=@sipf-std-client_nrf9160.tar.gz -F channels=#iot-pf-firmware-ci -F token=$SLACK_TOKEN -F filename=sipf-std-client_nrf9160_$WERCKER_GIT_COMMIT.tar.gz https://slack.com/api/files.upload
+
+  after-steps:
+    - slack-notifier:
+        url: $SLACK_WEBHOOK_URL
+        channel: "#iot-pf-firmware-ci"
+        username: werckerbot
