@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2021 Sakura Internet Inc.
+ * Copyright (c) 2021 SAKURA internet Inc.
  *
  * SPDX-License-Identifier: MIT
  */
