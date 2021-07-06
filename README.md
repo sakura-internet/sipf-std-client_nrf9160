@@ -29,8 +29,21 @@ rm -rf build
 
 ### Build
 
+For develop
 ```
-west build -b m5stack_nrf9160ns
+./build.sh
+```
+
+For production
+```
+./build.sh production
+```
+
+For local only
+```
+cp -n prj.conf.develop prj.conf.local
+vi prj.conf.local
+./build.sh local
 ```
 
 ### Flash
