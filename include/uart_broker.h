@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <drivers/uart.h>
+
 #define UART_LABEL DT_LABEL(DT_NODELABEL(uart0))
 
 #define UART_TX_BUF_SZ (256)
