@@ -1,4 +1,7 @@
 build/
 dist/
 
+prj.conf.local
+prj.conf
+
 .DS_Store

@@ -26,3 +26,12 @@ target_sources(app PRIVATE
 target_include_directories(app PRIVATE
     include/
 )
+
+if(SIPF_ENVIRONMENT STREQUAL "production")
+    message("Set -Werror")
+    zephyr_library_compile_options("-Werror")
+endif()
+if(SIPF_ENVIRONMENT STREQUAL "staging")
+    message("Set -Werror")
+    zephyr_library_compile_options("-Werror")
+endif()
