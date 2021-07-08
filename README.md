@@ -50,10 +50,16 @@ vi prj.conf.local
 
 `nrfjprog` is required.
 
+For develop
 ```
-west flash
+./flash.sh
+```
+
+For production
+```
+./flash.sh production
 ```
 
 OR
 
-Write the HEX image file 'build/zephyr/merged.hex' using nRF Connect `Programmer' application.
+Write the HEX image file 'build/{ENV}/zephyr/merged.hex' using nRF Connect `Programmer' application.
