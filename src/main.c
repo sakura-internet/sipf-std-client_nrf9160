@@ -282,7 +282,6 @@ static int init_modem_and_lte(void)
   }
   LOG_DBG("Configure pin OK");
 
-
   err = lte_lc_pdp_context_set(LTE_LC_PDP_TYPE_IP, "sakura", 0, 0, 0);
   if (err) {
     LOG_ERR("Failed to configure to the LTE PDP context, err %d", err);
