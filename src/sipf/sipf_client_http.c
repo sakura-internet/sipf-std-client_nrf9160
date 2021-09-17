@@ -170,7 +170,7 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
     //パスワード認証モードの場合
     createAuthInfoFromRegister(); //レジスタから認証情報を生成する
   }
-  LOG_DBG("auth: %s", req_auth_header);
+  LOG_INF("auth: %s", req_auth_header);
 
   struct http_request req;
   memset(&req, 0, sizeof(req));
@@ -463,6 +463,11 @@ int SipfClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty, u
 
   // obj
   *objqty = 0;
+  if (http_res.content_length == 12 + 35) {
+    // objなし
+    LOG_INF("empty");
+    return 0;
+  }
   int idx = 35; // objの先頭
   for (;;) {
     //オブジェクトの先頭ポインタをリストに追加
