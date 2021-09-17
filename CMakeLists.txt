@@ -19,6 +19,7 @@ target_sources(app PRIVATE
     src/registers.c
     src/uart_broker.c
     src/sipf/sipf_client_http.c
+    src/sipf/sipf_object.c
     src/fota/fota_http.c
     src/gnss/gnss.c
 )

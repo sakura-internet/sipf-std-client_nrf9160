@@ -123,8 +123,7 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
   int ret;
   struct addrinfo *res;
   struct addrinfo hints = {
-      .ai_family = AF_INET,
-      .ai_socktype = SOCK_STREAM,
+      .ai_family = AF_INET, .ai_socktype = SOCK_STREAM,
   };
   // 接続先をセットアップするよ
   ret = getaddrinfo(hostname, NULL, &hints, &res);
@@ -218,6 +217,7 @@ int SipfClientSetAuthInfo(const char *user_name, const char *passwd)
   int ilen, olen;
 
   ilen = sprintf(tmp1, "%s:%s", user_name, passwd);
+  LOG_DBG("%s", tmp1);
   if (base64_encode(tmp2, sizeof(tmp2), &olen, tmp1, ilen) < 0) {
     return -1;
   }
@@ -235,9 +235,9 @@ int SipfClientGetAuthInfo(void)
     return ret;
   }
 
+  LOG_INF("Response status %s", http_res.http_status);
+  LOG_INF("content-length: %d", http_res.content_length);
   // FIXME: CONFIG_SIPF_LOG_LEVEL をつかっていい感じに抑制する
-  LOG_DBG("Response status %s", http_res.http_status);
-  LOG_DBG("content-length: %d", http_res.content_length);
   for (int i = 0; i < http_res.content_length; i++) {
     LOG_DBG("0x%02x ", http_res.body_start[i]);
   }
@@ -260,7 +260,7 @@ int SipfClientGetAuthInfo(void)
       }
     }
   }
-  LOG_DBG("user_name=%s passwd=%s", user_name, passwd);
+  LOG_INF("user_name=%s passwd=%s", user_name, passwd);
   if (passwd != NULL) {
     return SipfClientSetAuthInfo(user_name, passwd);
   }
@@ -328,7 +328,7 @@ int SipfCLientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid *o
     return -1;
   }
 
-  if (sipf_obj_head[0] != 0x02) {
+  if (sipf_obj_head[0] != OBJID_NOTIFICATION) {
     // OBJID_NOTIFICATIONじゃない
     LOG_WRN("Invalid header type 0x%02x", sipf_obj_head[0]);
     return -1;
@@ -369,4 +369,115 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
   memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
 
   return SipfCLientObjUpRaw(payload, size, otid);
+}
+
+int SipfClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty, uint8_t **p_objs, uint8_t **p_user_send_datetime, uint8_t **p_recv_datetime)
+{
+  int ret;
+
+  if (otid == NULL) {
+    return -1;
+  }
+  if (objqty == NULL) {
+    return -1;
+  }
+  if (p_user_send_datetime == NULL) {
+    return -1;
+  }
+  if (p_recv_datetime == NULL) {
+    return -1;
+  }
+
+  memset(req_buff, 0x00, BUFF_SZ);
+
+  // COMMAND_TYPE
+  req_buff[0] = (uint8_t)OBJECTS_DOWN_REQUEST;
+  // COMMAND_TIME
+  req_buff[1] = 0x00;
+  req_buff[2] = 0x00;
+  req_buff[3] = 0x00;
+  req_buff[4] = 0x00;
+  req_buff[5] = 0x00;
+  req_buff[6] = 0x00;
+  req_buff[7] = 0x00;
+  req_buff[8] = 0x00;
+  // OPTION_FLAG
+  req_buff[9] = 0x00;
+  // PAYLOAD_SIZE(BigEndian)
+  req_buff[10] = 0x00;
+  req_buff[11] = 0x01;
+
+  // OBJECTS_DOWN
+  req_buff[12] = 0x00; // RESERVED
+
+  /* リクエスト送信 */
+  static struct http_response http_res;
+  ret = run_connector_http_request(req_buff, 13, &http_res);
+
+  LOG_INF("run_connector_http_request(): %d", ret);
+  if (ret < 0) {
+    return ret;
+  }
+
+  LOG_INF("Response status %s", http_res.http_status);
+  LOG_INF("content-length: %d", http_res.content_length);
+  for (int i = 0; i < http_res.content_length; i++) {
+    LOG_DBG("0x%02x ", http_res.body_start[i]);
+  }
+
+  /* レスポンスを処理 */
+  uint8_t *sipf_obj_head = &http_res.body_start[0];
+  uint8_t *sipf_obj_payload = &http_res.body_start[12];
+  if (strcmp(http_res.http_status, "OK") != 0) {
+    if (strcmp(http_res.http_status, "Unauthorized") == 0) {
+      return -401;
+    }
+    // OK以外
+    return -1;
+  }
+
+  // OBJECTS_DOWNをパース
+  if ((http_res.content_length < 12) || (http_res.content_length >= 12 + BUFF_SZ)) {
+    // ザイズが仕様の範囲外
+    return -1;
+  }
+  if (sipf_obj_head[0] != OBJECTS_DOWN) {
+    // OBJECTS_DOWNじゃない
+    return -1;
+  }
+
+  if (sipf_obj_payload[0] != 0x00) {
+    // REQEST_RESULTがOK(0x00)じゃない
+    return -1;
+  }
+
+  // OTIDをコピー
+  memcpy(&otid->value, &sipf_obj_payload[1], sizeof(otid->value));
+  // USER_SEND_DATETIME_MSへのポインタをコピー
+  *p_user_send_datetime = &sipf_obj_payload[17];
+  // RECEIVED_DATETIME_MSへのポインタをコピー
+  *p_recv_datetime = &sipf_obj_payload[25];
+  // REMAINS
+  *remains = sipf_obj_payload[33];
+  // (RESERVED)
+
+  // obj
+  *objqty = 0;
+  int idx = 35; // objの先頭
+  for (;;) {
+    //オブジェクトの先頭ポインタをリストに追加
+    p_objs[(*objqty)++] = &sipf_obj_payload[idx];
+    //オブジェクト数の上限に達してたら中断
+    if (*objqty >= 16) {
+      break;
+    }
+    //インデックスを次のオブジェクトの先頭に設定
+    idx += (3 + sipf_obj_payload[idx + 2]);
+    if (idx >= http_res.content_length - 12) {
+      //インデックスが受信データの終端を超えた
+      break;
+    }
+  }
+
+  return 0;
 }

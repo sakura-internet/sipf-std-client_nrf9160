@@ -401,7 +401,6 @@ void main(void)
   uint8_t b, prev_auth_mode = 0x00;
   UartBrokerPuts("+++ Ready +++\n");
   led_on(LED3_PIN);
-
   ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
   for (;;) {
     while (UartBrokerGetByte(&b) == 0) {

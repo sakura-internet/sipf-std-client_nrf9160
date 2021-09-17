@@ -330,6 +330,70 @@ static int cmdAsciiCmdTxRaw(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff
 }
 
 /**
+ * $$RXコマンド
+ * パラメータなし
+ */
+static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  if (in_len != 0) {
+    // なにかパラメータが指定されてる。
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  uint8_t err;
+  SipfObjectOtid otid;
+  uint8_t remains, objqty;
+  uint8_t *p_snd_datetime, *p_rcv_datetime, *p_objs[16];
+
+  err = SipfClientObjDown(&otid, &remains, &objqty, p_objs, &p_snd_datetime, &p_rcv_datetime);
+
+  if (err != 0) {
+    LOG_ERR("SipfClientObjDown():%d", err);
+    return cmdCreateResNg(out_buff, out_buff_len);
+  }
+
+  LOG_INF("remains=%d, objqty=%d", remains, objqty);
+
+  int idx = 0;
+  // OTID
+  for (int i = 0; i < 16; i++) {
+    idx += sprintf(&out_buff[idx], "%02X", otid.value[i]);
+  }
+  idx += sprintf(&out_buff[idx], "\r\n");
+  // USER_SEND_DATETIME_MS
+  for (int i = 0; i < 8; i++) {
+    idx += sprintf(&out_buff[idx], "%02X", p_snd_datetime[i]);
+  }
+  idx += sprintf(&out_buff[idx], "\r\n");
+  // RECEIVE_DATETIME_MS
+  for (int i = 0; i < 8; i++) {
+    idx += sprintf(&out_buff[idx], "%02X", p_rcv_datetime[i]);
+  }
+  idx += sprintf(&out_buff[idx], "\r\n");
+  // REMAINS
+  idx += sprintf(&out_buff[idx], "%02X\r\n", remains);
+  // OBJQTY
+  idx += sprintf(&out_buff[idx], "%02X\r\n", objqty);
+  // OBJECTS
+  for (int i = 0; i < objqty; i++) {
+    SipfObjectObject obj;
+    obj.value = buff_work;
+    if (SipfObjectParse(p_objs[i], sizeof(buff_work), &obj) != 0) {
+      LOG_ERR("SipfObjectParse() failed...");
+      return cmdCreateResNg(out_buff, out_buff_len);
+    }
+    idx += sprintf(&out_buff[idx], "%02x %02x %02x ", obj.obj_type, obj.obj_tagid, obj.value_len);
+    for (int j = 0; j < obj.value_len; j++) {
+      idx += sprintf(&out_buff[idx], "%02X", obj.value[j]);
+    }
+    idx += sprintf(&out_buff[idx], "\r\n");
+  }
+  idx += sprintf(&out_buff[idx], "OK\r\n");
+
+  return idx;
+}
+
+/**
  * $$UNLOCKコマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
  */
@@ -486,7 +550,7 @@ static int cmdAsciiCmdGnssNmea(uint8_t *in_buff, uint16_t in_len, uint8_t *out_b
   return (int)(buff - out_buff);
 }
 
-static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TXRAW, cmdAsciiCmdTxRaw}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
+static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TXRAW, cmdAsciiCmdTxRaw}, {CMD_TX, cmdAsciiCmdTx}, {CMD_RX, cmdAsciiCmdRx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
 
 int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {
