@@ -354,6 +354,11 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
 
   LOG_INF("remains=%d, objqty=%d", remains, objqty);
 
+  if (objqty == 0) {
+    LOG_INF("EMPTY");
+    return cmdCreateResOk(out_buff, out_buff_len);
+  }
+
   int idx = 0;
   // OTID
   for (int i = 0; i < 16; i++) {
