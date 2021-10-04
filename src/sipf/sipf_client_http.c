@@ -439,15 +439,18 @@ int SipfClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty, u
   // OBJECTS_DOWNをパース
   if ((http_res.content_length < 12) || (http_res.content_length >= 12 + BUFF_SZ)) {
     // ザイズが仕様の範囲外
+    LOG_ERR("Invalid content_length: %d", http_res.content_length);
     return -1;
   }
   if (sipf_obj_head[0] != OBJECTS_DOWN) {
     // OBJECTS_DOWNじゃない
+    LOG_ERR("Invalid command type: %d", sipf_obj_head[0]);
     return -1;
   }
 
   if (sipf_obj_payload[0] != 0x00) {
     // REQEST_RESULTがOK(0x00)じゃない
+    LOG_ERR("REQUEST_RESULT: %d", sipf_obj_payload[0]);
     return -1;
   }
 
