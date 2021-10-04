@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <zephyr.h>
 #include <logging/log.h>
@@ -258,6 +259,76 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
   return len;
 }
 
+static int cmdAsciiCmdTxRaw(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+  // $TXRAW XX YYYYYYYYYY..
+  is_unlocked = false;
+
+  if (in_len < 5) {
+    // valueまでの長さが無い
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  if (in_buff[0] != 0x20 || in_buff[3] != 0x20) {
+    // 先頭がスペースじゃない or SizeとValueの間がスペースじゃない
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  in_buff[0] = '\0';
+  in_buff[3] = '\0';
+
+  uint8_t size;
+  uint8_t buffer[256];
+  char *endptr;
+
+  size = strtol((char *)&in_buff[1], &endptr, 16);
+  if (*endptr != '\0') {
+    // Null文字以外で変換が終わってる
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  LOG_DBG("TXRAW Size:%d", size);
+
+  uint8_t *head = &in_buff[4];
+  int i;
+  for (i = 0; i < size; i++) {
+    if (!isxdigit(*head) || !isxdigit(*(head + 1))) {
+      LOG_WRN("Invalid charctor");
+      return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+
+    uint8_t hexBuff[3] = {*head, *(head + 1), 0x00};
+    uint8_t value = strtol((char *)hexBuff, &endptr, 16);
+    if (*endptr != '\0') {
+      // Null文字以外で変換が終わってる
+      LOG_WRN("Convert error");
+      return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    buffer[i] = value;
+    head += 2;
+  }
+
+  if (*head != '\0' && *head != '\r' && *head != '\n') {
+    // 文字があまっている
+    LOG_WRN("Invalid length");
+    return cmdCreateResIllParam(out_buff, out_buff_len);
+  }
+
+  SipfObjectOtid otid;
+  uint8_t err = SipfCLientObjUpRaw(buffer, size, &otid);
+  int len = 0;
+  if (err == 0) {
+    for (int i = 0; i < sizeof(otid.value); i++) {
+      len += sprintf(&out_buff[i * 2], "%02X", otid.value[i]);
+    }
+    len += sprintf(&out_buff[len], "\r\nOK\r\n");
+  } else {
+    LOG_ERR("SipfClientObjUpRaw() failed: %d", err);
+    return cmdCreateResNg(out_buff, out_buff_len);
+  }
+  return len;
+}
+
 /**
  * $$UNLOCKコマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
@@ -415,7 +486,7 @@ static int cmdAsciiCmdGnssNmea(uint8_t *in_buff, uint16_t in_len, uint8_t *out_b
   return (int)(buff - out_buff);
 }
 
-static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
+static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TXRAW, cmdAsciiCmdTxRaw}, {CMD_TX, cmdAsciiCmdTx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
 
 int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {

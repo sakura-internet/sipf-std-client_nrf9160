@@ -16,7 +16,6 @@
 
 #include "gnss/gnss.h"
 
-
 LOG_MODULE_REGISTER(gnss, CONFIG_SIPF_LOG_LEVEL);
 
 static int gnss_fd;

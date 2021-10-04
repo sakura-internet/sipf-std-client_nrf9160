@@ -267,16 +267,14 @@ int SipfClientGetAuthInfo(void)
   return -1;
 }
 
-int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
+int SipfCLientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid *otid)
 {
-  int ret;
-  uint16_t sz;
+  uint16_t sz_packet = 12 + size; // HEADER 12 + Size
 
-  if (simp_obj_up->obj.value == NULL) {
+  if (sz_packet >= sizeof(req_buff)) {
+    LOG_ERR("Size is too big %d", size);
     return -1;
   }
-
-  uint16_t sz_packet = simp_obj_up->obj.value_len + 12 + 3;
 
   // COMMAND_TYPE
   req_buff[0] = (uint8_t)OBJECTS_UP;
@@ -291,25 +289,15 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
   req_buff[8] = 0x00;
   // OPTION_FLAG
   req_buff[9] = 0x00;
-  // PAYLOAD_SIZE(BigEndian)
-  sz = simp_obj_up->obj.value_len + 3;
-  req_buff[10] = sz >> 8;
-  req_buff[11] = sz & 0xff;
 
-  // payload: OBJECTS_UP
-  uint8_t *payload = &req_buff[12];
-  // OBJ
-  //  OBJ_TYPEID
-  payload[0] = simp_obj_up->obj.obj_type;
-  //  OBJ_TAGID
-  payload[1] = simp_obj_up->obj.obj_tagid;
-  //  OBJ_LENGTH
-  payload[2] = simp_obj_up->obj.value_len;
-  //  OBJ_VALUE
-  memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
+  // PAYLOAD_SIZE(BigEndian)
+  req_buff[10] = size >> 8;
+  req_buff[11] = size & 0xff;
+
+  memcpy(&req_buff[12], payload_buffer, size);
 
   static struct http_response http_res;
-  ret = run_connector_http_request(req_buff, sz_packet, &http_res);
+  int ret = run_connector_http_request(req_buff, sz_packet, &http_res);
 
   LOG_INF("run_connector_http_request(): %d", ret);
   if (ret < 0) {
@@ -326,6 +314,7 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
   uint8_t *sipf_obj_head = &http_res.body_start[0];
   uint8_t *sipf_obj_payload = &http_res.body_start[12];
   if (strcmp(http_res.http_status, "OK") != 0) {
+    LOG_WRN("Invalid HTTP stauts %s", http_res.http_status);
     if (strcmp(http_res.http_status, "Unauthorized") == 0) {
       return -401;
     }
@@ -335,21 +324,49 @@ int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
 
   if (http_res.content_length != 30) {
     // ペイロード長が合わない
+    LOG_WRN("Invalid HTTP response size %d", http_res.content_length);
     return -1;
   }
 
   if (sipf_obj_head[0] != 0x02) {
     // OBJID_NOTIFICATIONじゃない
+    LOG_WRN("Invalid header type 0x%02x", sipf_obj_head[0]);
     return -1;
   }
 
   if (sipf_obj_payload[0] != 0x00) {
     // ResultがOKじゃない
+    LOG_WRN("Invalid result 0x%02x", sipf_obj_head[0]);
     return -1;
   }
 
   // OTIDを取得
   memcpy(&otid->value, &sipf_obj_payload[2], sizeof(otid->value));
-
   return 0;
+}
+
+int SipfClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
+{
+  if (simp_obj_up->obj.value == NULL) {
+    return -1;
+  }
+
+  uint16_t size = 3 + simp_obj_up->obj.value_len;
+  uint8_t payload[32];
+  if (size > sizeof(payload)) {
+    LOG_ERR("obj.value is too big %d", size);
+    return -1;
+  }
+
+  // OBJ
+  //  OBJ_TYPEID
+  payload[0] = simp_obj_up->obj.obj_type;
+  //  OBJ_TAGID
+  payload[1] = simp_obj_up->obj.obj_tagid;
+  //  OBJ_LENGTH
+  payload[2] = simp_obj_up->obj.value_len;
+  //  OBJ_VALUE
+  memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
+
+  return SipfCLientObjUpRaw(payload, size, otid);
 }

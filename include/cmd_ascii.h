@@ -16,6 +16,7 @@
 
 #define CMD_TX "$TX"
 #define CMD_RX "$RX"
+#define CMD_TXRAW "$TXRAW"
 #define CMD_PUSH "$PUSH"
 #define CMD_PULL "$PULL"
 #define CMD_BCLR "$BCLR"
