@@ -63,3 +63,6 @@ For production
 OR
 
 Write the HEX image file 'build/{ENV}/zephyr/merged.hex' using nRF Connect `Programmer' application.
+
+---
+Please refer to the [Wiki(Japanese)](https://github.com/sakura-internet/sipf-std-client_nrf9160/wiki) for specifications.
