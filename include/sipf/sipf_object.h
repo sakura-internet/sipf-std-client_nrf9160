@@ -1,7 +1,9 @@
 #ifndef _SIPF_OBJECT_H_
 #define _SIPF_OBJECT_H_
 
+#include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #define OBJ_TYPE_UINT8 0x00
 #define OBJ_TYPE_INT8 0x01
@@ -16,15 +18,18 @@
 #define OBJ_TYPE_BIN_BASE64 0x10
 #define OBJ_TYPE_STR_UTF8 0x20
 
-typedef enum
-{
+typedef enum {
   OBJECTS_UP = 0x00,
   OBJECTS_UP_RETRY = 0x01,
   OBJID_NOTIFICATION = 0x02,
-  OBJID_REACH_INQUIRY = 0x03,
-  OBJID_REACH_RESULT = 0x04,
-  OBJECTS_DOWN = 0x05,
-  OBJID_REACH_NOTIFICATION = 0x06,
+
+  OBJECTS_DOWN_REQUEST = 0x11,
+  OBJECTS_DOWN = 0x12,
+  /*
+  OBJID_REACH_INQUIRY = 0xff,
+  OBJID_REACH_RESULT = 0xff,
+  OBJID_REACH_NOTIFICATION = 0xff,
+  */
   OBJ_COMMAND_ERR = 0xff,
 } SipfObjectCommandType;
 
@@ -54,4 +59,7 @@ typedef struct
 {
   uint8_t value[16];
 } SipfObjectOtid;
+
+int SipfObjectParse(uint8_t *raw_buff, const uint16_t raw_len, SipfObjectObject *obj);
+
 #endif
