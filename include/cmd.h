@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 #include <stdint.h>
-#define CMD_BUFF_SZ 1024
+#define CMD_BUFF_SZ 2048
 
 typedef enum { CMD_STATE_WAIT = 0, CMD_STATE_BUFFERING_ASCII, CMD_STATE_BUFFERING_BIN, _CMD_STATE_CNT_ } CmdState;
 

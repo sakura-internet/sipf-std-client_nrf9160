@@ -142,118 +142,187 @@ static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, ui
   return sprintf(out_buff, "%02x\r\nOK\r\n", val);
 }
 
+static int checkTypeLen(uint8_t type_id, uint16_t len)
+{
+  switch (type_id) {
+  case OBJ_TYPE_UINT8:
+  case OBJ_TYPE_INT8:
+    if (len != 1) {
+      return false;
+    }
+    break;
+  case OBJ_TYPE_UINT16:
+  case OBJ_TYPE_INT16:
+    if (len != 2) {
+      return false;
+    }
+    break;
+  case OBJ_TYPE_UINT32:
+  case OBJ_TYPE_INT32:
+  case OBJ_TYPE_FLOAT32:
+    if (len != 4) {
+      return false;
+    }
+    break;
+  case OBJ_TYPE_UINT64:
+  case OBJ_TYPE_INT64:
+  case OBJ_TYPE_FLOAT64:
+    if (len != 8) {
+      return false;
+    }
+    break;
+  case OBJ_TYPE_BIN_BASE64:
+  case OBJ_TYPE_STR_UTF8:
+    if (len > 1000) {
+      return false;
+    }
+    break;
+  default:
+    // TYPEが範囲外
+    return false;
+  }
+  return true;
+}
+
+/**
+ * OBJECT送信
+ */
+static uint8_t tx_buff[1024];
 static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {
-  is_unlocked = false;
+  enum {
+    ST_BEGIN,
+    ST_TAG_ID,
+    ST_TYPE,
+    ST_VALUE,
+    ST_END
+  } parse_state = ST_BEGIN;
+
+  uint16_t idx_in_buff = 0;
+  uint16_t idx_tx_buff = 0;
 
   if (in_len < 8) {
     // valueまでの長さが無い
     return cmdCreateResIllParam(out_buff, out_buff_len);
   }
 
-  if (in_buff[0] != 0x20) {
-    // 先頭がスペースじゃない
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
+  memset(tx_buff, 0, sizeof(tx_buff));
 
-  if (in_buff[3] != 0x20) {
-    // TAG_IDとTYPEの区切り位置がスペースじゃない
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
-
-  if (in_buff[6] != 0x20) {
-    // TYPEとVALUEの区切り位置がスペースじゃない
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
-
-  // 文字列として処理できるように区切りのスペースをNull文字にする
-  in_buff[3] = 0x00;
-  in_buff[6] = 0x00;
-  in_buff[in_len] = 0x00;
-
-  char *endptr;
   uint8_t tag_id, type_id;
-  uint8_t *top_value;
-
-  tag_id = strtol((char *)&in_buff[1], &endptr, 16);
-  if (*endptr != '\0') {
-    // Null文字以外で変換が終わってる
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
-  type_id = strtol((char *)&in_buff[4], &endptr, 16);
-  if (*endptr != '\0') {
-    // Null文字以外で変換が終わってる
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
-
-  top_value = &in_buff[7];
-  int val_str_len = strlen(top_value);
-  SipfObjectUp objup;
-  objup.obj.obj_tagid = tag_id;
-  objup.obj.obj_type = type_id;
-  LOG_DBG("tag_id: 0x%02x, type: 0x%02x, val=%s", tag_id, type_id, top_value);
-  switch (type_id) {
-  case OBJ_TYPE_UINT8:
-  case OBJ_TYPE_INT8:
-    if (val_str_len != 2) {
-      return cmdCreateResIllParam(out_buff, out_buff_len);
-    }
-    break;
-  case OBJ_TYPE_UINT16:
-  case OBJ_TYPE_INT16:
-    if (val_str_len != 4) {
-      return cmdCreateResIllParam(out_buff, out_buff_len);
-    }
-    break;
-  case OBJ_TYPE_UINT32:
-  case OBJ_TYPE_INT32:
-  case OBJ_TYPE_FLOAT32:
-    if (val_str_len != 8) {
-      return cmdCreateResIllParam(out_buff, out_buff_len);
-    }
-    break;
-  case OBJ_TYPE_UINT64:
-  case OBJ_TYPE_INT64:
-  case OBJ_TYPE_FLOAT64:
-    if (val_str_len != 16) {
-      return cmdCreateResIllParam(out_buff, out_buff_len);
-    }
-    break;
-  case OBJ_TYPE_BIN_BASE64:
-  case OBJ_TYPE_STR_UTF8:
-    if ((val_str_len % 2) != 0) {
-      // 奇数文字数はエラー
-      return cmdCreateResIllParam(out_buff, out_buff_len);
-    }
-    break;
-  default:
-    // TYPEが範囲外
-    return cmdCreateResIllParam(out_buff, out_buff_len);
-  }
-
+  uint8_t value_len = 0;
+  uint16_t idx_value_len;
   uint8_t err;
-  for (int i = 0; i < (val_str_len / 2); i++) {
-    buff_work[i] = hexToUint8(&top_value[i * 2], &err);
-    if (err != 0) {
-      // 変換に失敗
-      return cmdCreateResIllParam(out_buff, out_buff_len);
+  SipfObjectOtid otid;
+  int len = 0;
+  for (;;) {
+    switch (parse_state) {
+    case ST_BEGIN:
+      if (in_buff[idx_in_buff] == ' ') {
+        idx_in_buff++;
+        parse_state = ST_TAG_ID;  // TAG_IDのパースへ遷移
+      } else {
+        LOG_ERR("BEGIN: Invalid separater");
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+      }
+      break;
+    case ST_TAG_ID: // TAG_IDのパース
+      if (in_buff[idx_in_buff+2] == ' ') {
+        in_buff[idx_in_buff+2] = '\0';
+        // TAG_IDを送信バッファにセット
+        tag_id = hexToUint8(&in_buff[idx_in_buff], &err);
+        LOG_INF("TAG_ID: 0x%02x", tag_id);
+        if (err != 0) {
+          // 変換失敗
+          LOG_ERR("TAG_ID: parse failed...");
+          return cmdCreateResIllParam(out_buff, out_buff_len);
+        }
+        idx_in_buff += 3;       // 入力バッファのインデックスを進める
+        parse_state = ST_TYPE;  // TYPEのパースへ遷移
+      } else {
+        LOG_ERR("TAG_ID: Invalid separater");
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+      }
+      break;
+    case ST_TYPE:   // TYPEのパース
+      if (in_buff[idx_in_buff+2] == ' ') {
+        in_buff[idx_in_buff+2] = '\0';
+        // TYPE_IDを送信バッファにセット  
+        type_id = hexToUint8(&in_buff[idx_in_buff], &err);
+        LOG_INF("TYPE: 0x%02x", type_id);
+        if (err != 0) {
+          // 変換失敗
+          LOG_ERR("TYPE: parse failed...");
+          return cmdCreateResIllParam(out_buff, out_buff_len);
+        }
+        idx_in_buff += 3;       // 入力バッファのインデックスを進める
+        // 送信バッファに積んでVALUEのパースへ
+        tx_buff[idx_tx_buff++] = type_id;
+        tx_buff[idx_tx_buff++] = tag_id;
+        idx_value_len = idx_tx_buff++;
+        value_len = 0;
+        parse_state = ST_VALUE; // VALUEのパースへ遷移
+      } else {
+        LOG_ERR("TYPE: Invalid separater");
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+      }      
+      break;
+    case ST_VALUE:  // Valueのパース
+      if (idx_in_buff >= in_len) {  // 入力の末尾へ到達
+        // TYPEとデータ長が矛盾してたらエラー
+        if (checkTypeLen(type_id, value_len) == false) {
+          LOG_ERR("VALUE: Value length missmatch...");
+          return cmdCreateResIllParam(out_buff, out_buff_len);
+        }
+        // パース終了
+        LOG_INF("VALUE_LEN: %d", value_len);
+        tx_buff[idx_value_len] = value_len;
+        parse_state = ST_END;
+        break;
+      }
+      if (in_buff[idx_in_buff] == ' ') {  // スペースだったら
+        // TYPEとデータ長が矛盾してたらエラー
+        if (checkTypeLen(type_id, value_len) == false) {
+          LOG_ERR("VALUE: Value length missmatch...");
+          return cmdCreateResIllParam(out_buff, out_buff_len);
+        }
+        // 次のオブジェクトのパースへ
+        LOG_INF("VALUE_LEN: %d", value_len);
+        tx_buff[idx_value_len] = value_len;
+        idx_in_buff++;
+        parse_state = ST_TAG_ID;
+        break;
+      }
+      // 2文字ずつ読んでByteに変換
+      tx_buff[idx_tx_buff++] = hexToUint8(&in_buff[idx_in_buff], &err);
+      if (err != 0) {
+        LOG_ERR("VALUE: parse failed...");
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+      }
+      value_len++;
+      idx_in_buff += 2;
+      break;
+    case ST_END:
+      goto parse_end;
+      break;
+    default:
+      // 想定外のステート
+      return cmdCreateResNg(out_buff, out_buff_len);
     }
-    LOG_DBG("0x%02x", buff_work[i]);
   }
 
-  objup.obj.value_len = val_str_len / 2;
-  objup.obj.value = buff_work;
+parse_end:
 
-  SipfObjectOtid otid;
-  err = SipfClientObjUp(&objup, &otid);
-  int len = 0;
+  // SIPF_OBJ_UP送信
+  err = SipfCLientObjUpRaw(tx_buff, idx_tx_buff, &otid);
+  len = 0;
   if (err == 0) {
+    // OTID取得
     for (int i = 0; i < sizeof(otid.value); i++) {
       len += sprintf(&out_buff[i * 2], "%02X", otid.value[i]);
     }
     len += sprintf(&out_buff[len], "\r\nOK\r\n");
   } else {
-    LOG_ERR("SipfClientObjUp() failed: %d", err);
+    LOG_ERR("SipfClientObjUpRaw() failed: %d", err);
     return cmdCreateResNg(out_buff, out_buff_len);
   }
   return len;
@@ -565,8 +634,11 @@ int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t
     //コマンド名に対応する関数を呼ぶ
     int name_len = strlen(cmdfunc[idx].cmd_name);
     if (memcmp(in_buff, cmdfunc[idx].cmd_name, name_len) == 0) {
-      //コマンド名の次から末尾までのバッファを渡す(先頭はスペースのハズ)
-      return cmdfunc[idx].cmd_func(&in_buff[name_len], in_len - name_len, out_buff, out_buff_len);
+      //コマンド名の後は区切り文字(スペース)か終端？
+      if ((in_len == name_len) || (in_buff[name_len] == ' ')) {
+        //コマンド名の次から末尾までのバッファを渡す
+        return cmdfunc[idx].cmd_func(&in_buff[name_len], in_len - name_len, out_buff, out_buff_len);
+      }
     }
     idx++;
   }

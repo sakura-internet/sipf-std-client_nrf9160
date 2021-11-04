@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <logging/log.h>
 
@@ -47,9 +48,23 @@ static CmdResponse *stateBufferingAscii(uint8_t b)
       return NULL;
     }
   } else if (b == 0x08 /*BS*/) {
+    // バックスペースだったらインデックスを戻す
+    if (in_buff_idx == 0) {
+      // バッファの先頭だったらコマンド待ちへ遷移する
+      state = CMD_STATE_WAIT;
+    }
     in_buff_idx--;
   } else {
+    // バッファに追加
     in_buff[in_buff_idx++] = b;
+    if (in_buff_idx > sizeof(in_buff)) {
+      // バッファオーバー
+      state = CMD_STATE_WAIT;
+      LOG_ERR("CMD BUFFER FULL");
+      cmdres.response_len = sprintf((char*)out_buff, "\r\nNG\r\n");
+      cmdres.response = out_buff;
+      return &cmdres;
+    }
   }
   return NULL;
 }
