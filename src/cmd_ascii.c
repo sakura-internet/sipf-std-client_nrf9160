@@ -504,19 +504,31 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
     // UNLOCKされてない
     return cmdCreateResNg(out_buff, out_buff_len);
   }
-  if (in_len != 7) {
+  if (in_len < 7) {
     // パラメータ長が違う
     return cmdCreateResIllParam(out_buff, out_buff_len);
   }
   if (memcmp(" UPDATE", in_buff, 7) == 0) {
-    if (FotaHttpRun() != 0) {
+    if (FotaHttpRun("latest") != 0) {
+      // FOTA失敗した
+      return cmdCreateResNg(out_buff, out_buff_len);
+    }
+    // FOTA成功ならリセットかかるからここには来ないはず
+    return cmdCreateResOk(out_buff, out_buff_len);
+  } else if (memcmp(" VERSION ", in_buff, 9) == 0) {
+    // パラメータが"VERSION"だった
+    if (in_len < 10) {
+      // サフィックスがしていされていない
+      return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    in_buff[in_len] = 0x00; //文字列として扱うために末尾をNULL文字にする
+    if (FotaHttpRun(&in_buff[9]) != 0) {
       // FOTA失敗した
       return cmdCreateResNg(out_buff, out_buff_len);
     }
     // FOTA成功ならリセットかかるからここには来ないはず
     return cmdCreateResOk(out_buff, out_buff_len);
   } else {
-    // パラメータが”UPDATEじゃない”
     return cmdCreateResIllParam(out_buff, out_buff_len);
   }
 }
