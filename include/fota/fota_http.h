@@ -10,6 +10,9 @@
 #include <dfu/mcuboot.h>
 #include <net/fota_download.h>
 
-int FotaHttpRun(void);
+#define FOTA_BUFF_SZ    (512)
+#define IMAGE_PATH_LEN  (128)
+
+int FotaHttpRun(char *file_name_suffix);
 
 #endif

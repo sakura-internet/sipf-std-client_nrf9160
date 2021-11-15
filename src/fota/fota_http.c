@@ -14,7 +14,8 @@ LOG_MODULE_REGISTER(fota, CONFIG_FOTA_LOG_LEVEL);
 
 static K_SEM_DEFINE(sem_download_failed, 0, 1);
 
-static uint8_t fota_buf[512];
+static char image_fullpath[IMAGE_PATH_LEN];
+static uint8_t fota_buf[FOTA_BUFF_SZ];
 
 static void fota_dl_event_handler(const struct fota_download_evt *evt)
 {
@@ -38,7 +39,7 @@ static void fota_dl_event_handler(const struct fota_download_evt *evt)
   }
 }
 
-int FotaHttpRun(void)
+int FotaHttpRun(char *file_name_suffix)
 {
   int ret;
   // DFUライブラリにバッファを設定
@@ -54,7 +55,17 @@ int FotaHttpRun(void)
     return ret;
   }
   // FOTA開始(HTTPで)
-  ret = fota_download_start(CONFIG_SIPF_FOTA_HOST, CONFIG_SIPF_FOTA_PATH, -1, NULL, 0);
+  if (strlen(CONFIG_SIPF_FOTA_PATH) + strlen(file_name_suffix) > IMAGE_PATH_LEN) {
+    // イメージファイルのパス長が長すぎる
+    LOG_ERR("%s(): Image file path length too long.", __func__);
+    return -1;
+  }
+  sprintf(image_fullpath, CONFIG_SIPF_FOTA_PATH, file_name_suffix);
+  UartBrokerPuts("DOWNLOAD FROM ");
+  UartBrokerPuts(CONFIG_SIPF_FOTA_HOST "/");
+  UartBrokerPuts(image_fullpath);
+  UartBrokerPuts("\r\n");
+  ret = fota_download_start(CONFIG_SIPF_FOTA_HOST, image_fullpath, -1, NULL, 0);
   if (ret != 0) {
     LOG_ERR("fota_download_start() failed: %d", ret);
     return ret;
