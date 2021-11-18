@@ -456,7 +456,7 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
       LOG_ERR("SipfObjectParse() failed...");
       return cmdCreateResNg(out_buff, out_buff_len);
     }
-    idx += sprintf(&out_buff[idx], "%02x %02x %02x ", obj.obj_type, obj.obj_tagid, obj.value_len);
+    idx += sprintf(&out_buff[idx], "%02x %02x %02x ", obj.obj_tagid, obj.obj_type, obj.value_len);
     for (int j = 0; j < obj.value_len; j++) {
       idx += sprintf(&out_buff[idx], "%02X", obj.value[j]);
     }
