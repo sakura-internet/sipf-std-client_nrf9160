@@ -117,7 +117,7 @@ static int createAuthInfoFromRegister(void)
   return len;
 }
 
-static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res)
+static int run_http_request(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res, bool tls)
 {
   int sock;
   int ret;
@@ -131,21 +131,28 @@ static int run_http_request(const char *hostname, struct http_request *req, uint
     LOG_ERR("getaddrinfo failed: ret=%d errno=%d", ret, errno);
     return -errno;
   }
-  ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTPS_PORT);
+  if (tls) {
+    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTPS_PORT);
+    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
+  } else {
+    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(HTTP_PORT);
+    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-  sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
+  }
   if (sock < 0) {
     LOG_ERR("socket() failed: ret=%d errno=%d", ret, errno);
     freeaddrinfo(res);
     return -errno;
   }
-  // TLSを設定
-  ret = tls_setup(sock, hostname);
-  if (ret != 0) {
-    LOG_ERR("tls_setup() failed: ret=%d", ret);
-    freeaddrinfo(res);
-    (void)close(sock);
-    return -errno;
+  if (tls) {
+    // TLSを設定
+    ret = tls_setup(sock, hostname);
+    if (ret != 0) {
+      LOG_ERR("tls_setup() failed: ret=%d", ret);
+      freeaddrinfo(res);
+      (void)close(sock);
+      return -errno;
+    }
   }
   // 接続するよ
   LOG_INF("Connect to %s:%d", hostname, HTTPS_PORT);
@@ -187,7 +194,7 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(CONFIG_SIPF_CONNECTOR_HTTP_HOST, &req, 3 * MSEC_PER_SEC, http_res);
+  return run_http_request(CONFIG_SIPF_CONNECTOR_HTTP_HOST, &req, 3 * MSEC_PER_SEC, http_res, true);
 }
 
 int run_get_session_key_http_request(struct http_response *http_res)
@@ -207,7 +214,7 @@ int run_get_session_key_http_request(struct http_response *http_res)
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(CONFIG_SIPF_AUTH_HOST, &req, 3 * MSEC_PER_SEC, http_res);
+  return run_http_request(CONFIG_SIPF_AUTH_HOST, &req, 3 * MSEC_PER_SEC, http_res, true);
 }
 
 int SipfClientSetAuthInfo(const char *user_name, const char *passwd)
