@@ -14,6 +14,7 @@
 #include <modem/modem_info.h>
 #include <modem/modem_key_mgmt.h>
 #include <modem/nrf_modem_lib.h>
+#include <modem/pdn.h>
 #include <net/socket.h>
 #include <net/tls_credentials.h>
 #include <logging/log.h>
@@ -282,13 +283,27 @@ static int init_modem_and_lte(void)
   }
   LOG_DBG("Configure pin OK");
 
-  err = lte_lc_pdp_context_set(LTE_LC_PDP_TYPE_IP, "sakura", 0, 0, 0);
-  if (err) {
-    LOG_ERR("Failed to configure to the LTE PDP context, err %d", err);
+  /* PDN */
+  uint8_t cid;
+  err = pdn_init();
+  if (err != 0) {
+    LOG_ERR("Failed to pdn_init()");
+    return err;
+  }
+  err = pdn_ctx_create(&cid, NULL);
+  if (err != 0) {
+    LOG_ERR("Failed to pdn_ctx_create(), err %d", err);
+    return err;
+  }
+  // set APN
+  err = pdn_ctx_configure(cid, "sakura", PDN_FAM_IPV4, NULL);
+  if (err != 0) {
+    LOG_ERR("Failed to pdn_ctx_configure(), err %d", err);
     return err;
   }
   LOG_DBG("Setting APN OK");
 
+  /* CONNECT */
   enum at_cmd_state at_state;
   for (int i = 0; i < REGISTER_TRY; i++) {
 

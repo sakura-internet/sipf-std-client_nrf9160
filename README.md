@@ -12,7 +12,7 @@ Target divice are SCO-M5SNRF9160 and SCM-LTEM1NRF.
 See [nRF Connect SDK Getting started](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/getting_started.html).  
 If you want to install the development environment quickly, see [Installing the nRF Connect SDK through nRF Connect for Desktop](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/gs_assistant.html#gs-assistant).
 
-Using nRF Connect SDK v1.5.1 .
+Using nRF Connect SDK v1.7.1 .
 
 ### Clone this repository
 
