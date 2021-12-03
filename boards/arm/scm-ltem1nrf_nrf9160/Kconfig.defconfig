@@ -1,12 +1,12 @@
-# nRF9160 M5Stack NRF9160 board configuration
+# SCM-LTEM1NRF/SCO-M5SNRF9160 board configuration
 
 # Copyright (c) 2018-2020 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
 
-if BOARD_M5STACK_NRF9160 || BOARD_M5STACK_NRF9160NS
+if BOARD_SCM_LTEM1NRF_NRF9160 || BOARD_SCM_LTEM1NRF_NRF9160NS
 
 config BOARD
-	default "m5stack_nrf9160"
+	default "scm-ltem1nrf_nrf9160"
 
 # For the secure version of the board the firmware is linked at the beginning
 # of the flash, or into the code-partition defined in DT if it is intended to
@@ -25,7 +25,7 @@ config FLASH_LOAD_SIZE
 	default $(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_CODE_PARTITION))
 	depends on BOARD_M5STACK_NRF9160 && TRUSTED_EXECUTION_SECURE
 
-if BOARD_M5STACK_NRF9160NS
+if BOARD_SCM_LTEM1NRF_NRF9160NS
 
 config FLASH_LOAD_OFFSET
 	default $(dt_chosen_reg_addr_hex,$(DT_CHOSEN_Z_CODE_PARTITION))
@@ -33,6 +33,6 @@ config FLASH_LOAD_OFFSET
 config FLASH_LOAD_SIZE
 	default $(dt_chosen_reg_size_hex,$(DT_CHOSEN_Z_CODE_PARTITION))
 
-endif # BOARD_M5STACK_NRF9160NS
+endif # BOARD_SCM_LTEM1NRF_NRF9160NS
 
-endif # BOARD_M5STACK_NRF9160 || BOARD_M5STACK_NRF9160NS
+endif # BOARD_SCM_LTEM1NRF_NRF9160 || BOARD_SCM_LTEM1NRF_NRF9160NS

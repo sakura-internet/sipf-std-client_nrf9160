@@ -1,5 +1,5 @@
-identifier: m5stack_nrf9160
-name: M5Stack-NRF9160
+identifier: scm-ltem1nrf_nrf9160
+name: SCM-LTEM1NRF-NRF9160
 type: mcu
 arch: arm
 toolchain:

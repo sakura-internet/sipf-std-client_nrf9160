@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include <nordic/nrf9160ns_sica.dtsi>
-#include "m5stack_nrf9160_common.dts"
+#include "scm-ltem1nrf_nrf9160_common.dts"
 
 / {
 	chosen {

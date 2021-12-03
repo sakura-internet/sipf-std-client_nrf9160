@@ -60,7 +60,6 @@ BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 /*********/
 
 static const struct device *uart_dev;
-static struct gpio_callback gpio_cb;
 
 /* Initialize AT communications */
 int at_comms_init(void)
@@ -81,6 +80,9 @@ int at_comms_init(void)
 
   return 0;
 }
+
+#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160NS
+static struct gpio_callback gpio_cb;
 
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
 {
@@ -109,6 +111,12 @@ static int wake_in_init(void)
 
   return 0;
 }
+#else
+static int wake_in_init(void)
+{
+  return 0;
+}
+#endif
 
 /** LED **/
 static int led_init(void)
