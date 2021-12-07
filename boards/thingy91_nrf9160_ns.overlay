@@ -1,0 +1,14 @@
+/ {
+	aliases {
+		sw0 = &button0;
+		led0 = &red_led;
+		led1 = &sense_red_led;
+		led2 = &green_led;
+		led3 = &blue_led;
+		sense-led1 = &sense_green_led;
+		sense-led2 = &sense_blue_led;
+		rgb-pwm = &pwm0;
+		buzzer-pwm = &pwm1;
+		nmos-pwm = &pwm2;
+	};
+};
