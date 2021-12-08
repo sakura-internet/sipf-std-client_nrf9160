@@ -194,7 +194,12 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(CONFIG_SIPF_CONNECTOR_HTTP_HOST, &req, 3 * MSEC_PER_SEC, http_res, true);
+#ifndef CONFIG_SIPF_CONNECTOR_DISABLE_SSL
+  bool ssl = true;
+#else
+  bool ssl = false;
+#endif
+  return run_http_request(CONFIG_SIPF_CONNECTOR_HTTP_HOST, &req, 3 * MSEC_PER_SEC, http_res, ssl);
 }
 
 int run_get_session_key_http_request(struct http_response *http_res)
@@ -214,7 +219,12 @@ int run_get_session_key_http_request(struct http_response *http_res)
   req.recv_buf = res_buff;
   req.recv_buf_len = sizeof(res_buff);
 
-  return run_http_request(CONFIG_SIPF_AUTH_HOST, &req, 3 * MSEC_PER_SEC, http_res, true);
+#ifndef CONFIG_SIPF_AUTH_DISABLE_SSL
+  bool ssl = true;
+#else
+  bool ssl = false;
+#endif
+  return run_http_request(CONFIG_SIPF_AUTH_HOST, &req, 3 * MSEC_PER_SEC, http_res, ssl);
 }
 
 int SipfClientSetAuthInfo(const char *user_name, const char *passwd)

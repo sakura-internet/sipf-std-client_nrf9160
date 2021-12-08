@@ -6,15 +6,22 @@
 
 menu "SIPF standard client"
 
+config SIPF_PLMN
+	string "PLMN"
+
 config SIPF_AUTH_HOST
 	string "SIPF AUTH host name."
 config SIPF_AUTH_PATH
 	string "SIPF AUTH endpoint."
+config SIPF_AUTH_DISABLE_SSL
+	bool "Disable SSL for SIPF AUTH endpoint."
 
 config SIPF_CONNECTOR_HTTP_HOST
 	string "SIPF CONNECTOR HTTP host name."
 config SIPF_CONNECTOR_PATH
 	string "SIPF CONNECTOR HTTP endpoint."
+config SIPF_CONNECTOR_DISABLE_SSL
+	bool "Disable SSL for SIPF CONNECTOR HTTP endpoint."
 
 config SIPF_FOTA_HOST
 	string "Application update host name"
@@ -41,15 +48,6 @@ config SIPF_APP_VER_MINOR
 
 config SIPF_APP_VER_RELEASE
 	int "Application Release version" 
-
-#config APPLICATION_VERSION
-#	int "Application version"
-#	default 1
-#
-#config USE_HTTPS
-#	bool
-#	prompt "Use HTTPS for download"
-
 
 endmenu
 

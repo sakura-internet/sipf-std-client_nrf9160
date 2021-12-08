@@ -314,8 +314,8 @@ static int init_modem_and_lte(void)
   /* CONNECT */
   enum at_cmd_state at_state;
   for (int i = 0; i < REGISTER_TRY; i++) {
-
-    err = at_cmd_write("AT+COPS=1,2,\"44020\"", NULL, 0, &at_state);
+    LOG_DBG("PLMN: " CONFIG_SIPF_PLMN);
+    err = at_cmd_write("AT+COPS=1,2,\"" CONFIG_SIPF_PLMN "\"", NULL, 0, &at_state);
     if (err != 0) {
       LOG_ERR("Execute to lock PLMN error, err %d", err);
       return err;
@@ -398,7 +398,13 @@ void main(void)
   uart_dev = device_get_binding(UART_LABEL);
   UartBrokerInit(uart_dev);
   UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
-
+  UartBrokerPuts("* PLMN: " CONFIG_SIPF_PLMN "\n");
+#ifdef CONFIG_SIPF_AUTH_DISABLE_SSL
+  UartBrokerPuts("* Disable SSL, AUTH endpoint.\n");
+#endif
+#ifdef CONFIG_SIPF_CONNECTOR_DISABLE_SSL
+  UartBrokerPuts("* Disable SSL, CONNECTOR endpoint.\n");
+#endif
   // LEDの初期化
   led_init();
   led_on(LED2_PIN);
