@@ -29,7 +29,26 @@ rm -rf build
 
 ### Build
 
-For develop
+Use `build.sh` for build.
+
+```
+./build.sh [target] [board]
+```
+
+target
+
+- develop (default)
+- staging
+- production
+- local
+
+board
+
+- scm-ltem1nrf_nrf9160ns (default)
+- nrf9160dk_nrf9160_ns
+- thingy91_nrf9160_ns
+
+For develop / SCM-LTEM1NRF and SCO-M5SNRF9160
 ```
 ./build.sh
 ```
@@ -39,11 +58,24 @@ For production
 ./build.sh production
 ```
 
+For production / nRF9160DK
+```
+./build.sh production nrf9160dk_nrf9160_ns
+```
+
 For local only
 ```
 cp -n prj.conf.develop prj.conf.local
 vi prj.conf.local
 ./build.sh local
+```
+
+#### nRF9160DK
+
+
+ex, production for nRF9160DK
+```
+./build.sh production nrf9160dk_nrf9160_ns
 ```
 
 ### Flash
