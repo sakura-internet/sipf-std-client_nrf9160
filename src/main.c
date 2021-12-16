@@ -59,6 +59,8 @@ static const char cert[] = {
 BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 /*********/
 
+static K_SEM_DEFINE(lte_connected, 0, 1);
+static K_SEM_DEFINE(reset_request, 0, 1);
 static const struct device *uart_dev;
 
 /* Initialize AT communications */
@@ -86,9 +88,9 @@ static struct gpio_callback gpio_cb;
 
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
 {
-  //リブート
+  //リブート要求
   UartBrokerPrint("RESET_REQ_DETECT\n");
-  sys_reboot(SYS_REBOOT_COLD);
+  k_sem_give(&reset_request);
 }
 
 static int wake_in_init(void)
@@ -188,9 +190,8 @@ static int led1_toggle(void)
 /***********/
 
 /** MODEM **/
-#define REGISTER_TIMEOUT_MS (60000)
-#define REGISTER_TRY (5)
-static K_SEM_DEFINE(lte_connected, 0, 1);
+#define REGISTER_TIMEOUT_MS (120000)
+#define REGISTER_TRY (3)
 
 static int cert_provision(void)
 {
@@ -228,17 +229,28 @@ static int cert_provision(void)
 
 static void lte_handler(const struct lte_lc_evt *const evt)
 {
+  LOG_DBG("evt->type=%d", evt->type);
   switch (evt->type) {
   case LTE_LC_EVT_NW_REG_STATUS:
-    LOG_DBG("evt->nw_reg_status=%d\n", evt->nw_reg_status);
-    if ((evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME) && (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING)) {
-      if (evt->nw_reg_status == LTE_LC_NW_REG_SEARCHING) {
-        UartBrokerPrint("SEARCHING\n");
-      }
+    LOG_DBG("- evt->nw_reg_status=%d\n", evt->nw_reg_status);
+    if (evt->nw_reg_status == LTE_LC_NW_REG_SEARCHING) {
+      UartBrokerPrint("SEARCHING\n");
       break;
     }
-    UartBrokerPrint("REGISTERD\n");
-    k_sem_give(&lte_connected);
+    if ((evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME) || (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING)) {
+      UartBrokerPrint("REGISTERD\n");
+      k_sem_give(&lte_connected);
+      break;
+    }
+    break;
+  case LTE_LC_EVT_CELL_UPDATE:
+    LOG_DBG("- mcc=%d, mnc=%d", evt->cell.mcc, evt->cell.mnc);
+    break;
+  case LTE_LC_EVT_LTE_MODE_UPDATE:
+    LOG_DBG("- evt->lte_mode=%d", evt->lte_mode);
+    break;
+  case LTE_LC_EVT_MODEM_EVENT:
+    LOG_DBG("- evt->modem_evt=%d", evt->modem_evt);
     break;
   default:
     break;
@@ -270,9 +282,9 @@ static int init_modem_and_lte(void)
     return err;
   }
 
-  err = at_cmd_write("AT%XSYSTEMMODE=1,0,1,0", NULL, 0, NULL);
-  if (err != 0) {
-    LOG_ERR("Failed to set system mode, err %d", err);
+  err = lte_lc_system_mode_set(LTE_LC_SYSTEM_MODE_LTEM_GPS, LTE_LC_SYSTEM_MODE_PREFER_AUTO);
+  if (err) {
+    LOG_ERR("Failed to System Mode set.");
     return err;
   }
   LOG_DBG("Setting system mode OK");
@@ -314,18 +326,6 @@ static int init_modem_and_lte(void)
   /* CONNECT */
   enum at_cmd_state at_state;
   for (int i = 0; i < REGISTER_TRY; i++) {
-    LOG_DBG("PLMN: " CONFIG_SIPF_PLMN);
-    err = at_cmd_write("AT+COPS=1,2,\"" CONFIG_SIPF_PLMN "\"", NULL, 0, &at_state);
-    if (err != 0) {
-      LOG_ERR("Execute to lock PLMN error, err %d", err);
-      return err;
-    }
-    if (at_state == AT_CMD_OK) {
-      LOG_DBG("Lock PLMN OK");
-    } else {
-      LOG_ERR("Failed to lock PLMN, err %d", err);
-    }
-
     LOG_DBG("Initialize LTE");
     err = lte_lc_init();
     if (err) {
@@ -333,6 +333,14 @@ static int init_modem_and_lte(void)
       return err;
     }
     LOG_DBG("Initialize LTE OK");
+
+    lte_lc_modem_events_enable();
+/*
+    err = lte_lc_neighbor_cell_measurement();
+    if (err == 0) {
+      LOG_DBG("lte_lc_neighbor_cell_measurement() success.");
+    }
+*/
 
     LOG_INF("[%d] Trying to attach to LTE network (TIMEOUT: %d ms)", i, REGISTER_TIMEOUT_MS);
     UartBrokerPrint("Trying to attach to LTE network (TIMEOUT: %d ms)\r\n", REGISTER_TIMEOUT_MS);
@@ -398,7 +406,9 @@ void main(void)
   uart_dev = device_get_binding(UART_LABEL);
   UartBrokerInit(uart_dev);
   UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
-  UartBrokerPuts("* PLMN: " CONFIG_SIPF_PLMN "\n");
+#ifdef CONFIG_LTE_LOCK_PLMN
+  UartBrokerPuts("* PLMN: " CONFIG_LTE_LOCK_PLMN_STRING "\n");
+#endif
 #ifdef CONFIG_SIPF_AUTH_DISABLE_SSL
   UartBrokerPuts("* Disable SSL, AUTH endpoint.\n");
 #endif
@@ -460,6 +470,12 @@ void main(void)
 
     // GNSSイベントの処理
     gnss_poll();
+
+    if (k_sem_take(&reset_request, K_NO_WAIT)== 0) {
+        // リセット要求来た
+        lte_lc_offline();
+        sys_reboot(SYS_REBOOT_COLD);
+    }
 
     k_sleep(K_MSEC(1));
   }
