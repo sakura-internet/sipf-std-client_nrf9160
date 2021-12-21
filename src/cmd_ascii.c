@@ -313,7 +313,7 @@ static int cmdAsciiCmdTx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
 parse_end:
 
   // SIPF_OBJ_UP送信
-  err = SipfCLientObjUpRaw(tx_buff, idx_tx_buff, &otid);
+  err = SipfObjClientObjUpRaw(tx_buff, idx_tx_buff, &otid);
   len = 0;
   if (err == 0) {
     // OTID取得
@@ -384,7 +384,7 @@ static int cmdAsciiCmdTxRaw(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff
   }
 
   SipfObjectOtid otid;
-  uint8_t err = SipfCLientObjUpRaw(buffer, size, &otid);
+  uint8_t err = SipfObjClientObjUpRaw(buffer, size, &otid);
   int len = 0;
   if (err == 0) {
     for (int i = 0; i < sizeof(otid.value); i++) {
@@ -414,10 +414,10 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
   uint8_t remains, objqty;
   uint8_t *p_snd_datetime, *p_rcv_datetime, *p_objs[16];
 
-  err = SipfClientObjDown(&otid, &remains, &objqty, p_objs, &p_snd_datetime, &p_rcv_datetime);
+  err = SipfObjClientObjDown(&otid, &remains, &objqty, p_objs, &p_snd_datetime, &p_rcv_datetime);
 
   if (err != 0) {
-    LOG_ERR("SipfClientObjDown():%d", err);
+    LOG_ERR("SipfObjClientObjDown():%d", err);
     return cmdCreateResNg(out_buff, out_buff_len);
   }
 

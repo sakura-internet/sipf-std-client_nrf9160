@@ -6,37 +6,6 @@
 
 menu "SIPF standard client"
 
-config SIPF_PLMN
-	string "PLMN"
-
-config SIPF_AUTH_HOST
-	string "SIPF AUTH host name."
-config SIPF_AUTH_PATH
-	string "SIPF AUTH endpoint."
-config SIPF_AUTH_DISABLE_SSL
-	bool "Disable SSL for SIPF AUTH endpoint."
-
-config SIPF_CONNECTOR_HTTP_HOST
-	string "SIPF CONNECTOR HTTP host name."
-config SIPF_CONNECTOR_PATH
-	string "SIPF CONNECTOR HTTP endpoint."
-config SIPF_CONNECTOR_DISABLE_SSL
-	bool "Disable SSL for SIPF CONNECTOR HTTP endpoint."
-
-config SIPF_FOTA_HOST
-	string "Application update host name"
-	help
-	  Host part of URL to application update binary. For example
-	  if the file is stored in http://foo.bar/update.bin the value
-	  of this configuration should be 'foo.bar'
-
-config SIPF_FOTA_PATH
-	string "Application update file name"
-	help
-	  File part of URL to application update binary. For example
-	  if the file is stored in http://foo.bar/update.bin the value
-	  of this configuration should be 'update.bin'
-
 config SIPF_APP_TYPE
 	int "Application type"
 
@@ -54,11 +23,6 @@ endmenu
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu
-
-module = SIPF
-module-str = SIPF
-source "subsys/logging/Kconfig.template.log_config"
-
 
 module = FOTA
 module-str = Firmware over the Air

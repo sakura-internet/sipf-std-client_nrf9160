@@ -25,6 +25,7 @@
 #include "cmd.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
+#include "sipf/sipf_auth.h"
 #include "gnss/gnss.h"
 #include "uart_broker.h"
 
@@ -62,6 +63,12 @@ BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 static K_SEM_DEFINE(lte_connected, 0, 1);
 static K_SEM_DEFINE(reset_request, 0, 1);
 static const struct device *uart_dev;
+
+/* Auth info */
+#define SZ_USER_NAME  (255)
+#define SZ_PASSWORD   (255)
+static char user_name[SZ_USER_NAME];
+static char password[SZ_PASSWORD];
 
 /* Initialize AT communications */
 int at_comms_init(void)
@@ -459,10 +466,16 @@ void main(void)
 
     if ((*REG_00_MODE == 0x01) && (prev_auth_mode == 0x00)) {
       // 認証モードがIPアドレス認証に切り替えられた
-      err = SipfClientGetAuthInfo();
-      LOG_DBG("SipfClientGetAuthInfo(): %d", err);
+      err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
+      LOG_DBG("SipfAuthRequest(): %d", err);
       if (err < 0) {
         // IPアドレス認証に失敗した
+        *REG_00_MODE = 0x00; // モードが切り替えられなかった
+      }
+
+      err = SipfClientHttpSetAuthInfo(user_name, password);
+      if (err < 0) {
+        // 認証情報の設定に失敗した
         *REG_00_MODE = 0x00; // モードが切り替えられなかった
       }
     }

@@ -7,6 +7,7 @@
 cmake_minimum_required(VERSION 3.13.1)
 
 set(BOARD_ROOT ${CMAKE_SOURCE_DIR})
+set(ZEPHYR_EXTRA_MODULES ${CMAKE_SOURCE_DIR}/lib/sipf)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(sipf-nrf91-std)
@@ -17,8 +18,6 @@ target_sources(app PRIVATE
     src/cmd_ascii.c
     src/registers.c
     src/uart_broker.c
-    src/sipf/sipf_client_http.c
-    src/sipf/sipf_object.c
     src/fota/fota_http.c
     src/gnss/gnss.c
 )

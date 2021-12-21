@@ -53,7 +53,7 @@ For develop / SCM-LTEM1NRF and SCO-M5SNRF9160
 ./build.sh
 ```
 
-For production
+For production / SCM-LTEM1NRF and SCO-M5SNRF9160
 ```
 ./build.sh production
 ```
@@ -68,14 +68,6 @@ For local only
 cp -n prj.conf.develop prj.conf.local
 vi prj.conf.local
 ./build.sh local
-```
-
-#### nRF9160DK
-
-
-ex, production for nRF9160DK
-```
-./build.sh production nrf9160dk_nrf9160_ns
 ```
 
 ### Flash

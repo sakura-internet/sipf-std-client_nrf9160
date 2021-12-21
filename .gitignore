@@ -1,5 +1,6 @@
 build/
 dist/
+lib/
 
 prj.conf.local
 prj.conf.tmp
