@@ -1,0 +1,11 @@
+# Copyright (c) 2018 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "Application protocols"
+
+rsource "download_client/Kconfig"
+rsource "fota_download/Kconfig"
+
+endmenu

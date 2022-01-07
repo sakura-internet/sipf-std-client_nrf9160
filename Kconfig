@@ -18,6 +18,23 @@ config SIPF_APP_VER_MINOR
 config SIPF_APP_VER_RELEASE
 	int "Application Release version" 
 
+config SIPF_FOTA_HOST
+	string "Application update host name"
+	help
+	  Host part of URL to application update binary. For example
+	  if the file is stored in http://foo.bar/update.bin the value
+	  of this configuration should be 'foo.bar'
+
+config SIPF_FOTA_PATH
+	string "Application update file name"
+	help
+	  File part of URL to application update binary. For example
+	  if the file is stored in http://foo.bar/update.bin the value
+	  of this configuration should be 'update.bin'
+
+config SIPF_FOTA_TLS
+	bool "Enable SSL for FOTA client."
+
 endmenu
 
 menu "Zephyr Kernel"

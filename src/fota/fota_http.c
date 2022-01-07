@@ -15,7 +15,7 @@ LOG_MODULE_REGISTER(fota, CONFIG_FOTA_LOG_LEVEL);
 static K_SEM_DEFINE(sem_download_failed, 0, 1);
 
 static char image_fullpath[IMAGE_PATH_LEN];
-static uint8_t fota_buf[FOTA_BUFF_SZ];
+//static uint8_t fota_buf[FOTA_BUFF_SZ];
 
 static void fota_dl_event_handler(const struct fota_download_evt *evt)
 {
@@ -42,12 +42,14 @@ static void fota_dl_event_handler(const struct fota_download_evt *evt)
 int FotaHttpRun(char *file_name_suffix)
 {
   int ret;
+  /*
   // DFUライブラリにバッファを設定
   ret = dfu_target_mcuboot_set_buf(fota_buf, sizeof(fota_buf));
   if (ret != 0) {
     LOG_ERR("dfu_target_mcuboot_set_buf() failed: %d", ret);
     return ret;
   }
+  */
   // FOTA Downloadライブラリを初期化
   ret = fota_download_init(fota_dl_event_handler);
   if (ret != 0) {
@@ -65,7 +67,7 @@ int FotaHttpRun(char *file_name_suffix)
   UartBrokerPuts(CONFIG_SIPF_FOTA_HOST "/");
   UartBrokerPuts(image_fullpath);
   UartBrokerPuts("\r\n");
-  ret = fota_download_start(CONFIG_SIPF_FOTA_HOST, image_fullpath, -1, NULL, 0);
+  ret = fota_download_start(CONFIG_SIPF_FOTA_HOST, image_fullpath, FOTA_SEC_TAG, NULL, 0);
   if (ret != 0) {
     LOG_ERR("fota_download_start() failed: %d", ret);
     return ret;

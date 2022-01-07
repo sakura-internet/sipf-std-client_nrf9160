@@ -22,20 +22,6 @@ config SIPF_CONNECTOR_PATH
 config SIPF_CONNECTOR_DISABLE_SSL
 	bool "Disable SSL for SIPF CONNECTOR HTTP endpoint."
 
-config SIPF_FOTA_HOST
-	string "Application update host name"
-	help
-	  Host part of URL to application update binary. For example
-	  if the file is stored in http://foo.bar/update.bin the value
-	  of this configuration should be 'foo.bar'
-
-config SIPF_FOTA_PATH
-	string "Application update file name"
-	help
-	  File part of URL to application update binary. For example
-	  if the file is stored in http://foo.bar/update.bin the value
-	  of this configuration should be 'update.bin'
-
 module = SIPF
 module-str = SIPF
 source "subsys/logging/Kconfig.template.log_config"
