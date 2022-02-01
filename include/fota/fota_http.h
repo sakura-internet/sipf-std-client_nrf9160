@@ -14,8 +14,8 @@
 #include <net/fota_download_auth.h>
 #endif
 
-#define FOTA_BUFF_SZ    (512)
-#define IMAGE_PATH_LEN  (128)
+#define FOTA_BUFF_SZ (512)
+#define IMAGE_PATH_LEN (128)
 
 #ifdef CONFIG_SIPF_FOTA_TLS
 #define FOTA_SEC_TAG 42

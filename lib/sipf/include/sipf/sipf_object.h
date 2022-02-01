@@ -24,45 +24,45 @@
 #define OBJ_TYPE_STR_UTF8 0x20
 
 typedef enum {
-  OBJECTS_UP = 0x00,
-  OBJECTS_UP_RETRY = 0x01,
-  OBJID_NOTIFICATION = 0x02,
+    OBJECTS_UP = 0x00,
+    OBJECTS_UP_RETRY = 0x01,
+    OBJID_NOTIFICATION = 0x02,
 
-  OBJECTS_DOWN_REQUEST = 0x11,
-  OBJECTS_DOWN = 0x12,
-  /*
-  OBJID_REACH_INQUIRY = 0xff,
-  OBJID_REACH_RESULT = 0xff,
-  OBJID_REACH_NOTIFICATION = 0xff,
-  */
-  OBJ_COMMAND_ERR = 0xff,
+    OBJECTS_DOWN_REQUEST = 0x11,
+    OBJECTS_DOWN = 0x12,
+    /*
+    OBJID_REACH_INQUIRY = 0xff,
+    OBJID_REACH_RESULT = 0xff,
+    OBJID_REACH_NOTIFICATION = 0xff,
+    */
+    OBJ_COMMAND_ERR = 0xff,
 } SipfObjectCommandType;
 
 typedef struct
 {
-  SipfObjectCommandType command_type;
-  uint64_t command_time;
-  uint8_t option_flag;
-  uint16_t command_payload_size;
+    SipfObjectCommandType command_type;
+    uint64_t command_time;
+    uint8_t option_flag;
+    uint16_t command_payload_size;
 } SipfObjectCommandHeader;
 
 typedef struct
 {
-  uint8_t obj_type;
-  uint8_t obj_tagid;
-  uint8_t value_len;
-  uint8_t *value;
+    uint8_t obj_type;
+    uint8_t obj_tagid;
+    uint8_t value_len;
+    uint8_t *value;
 } SipfObjectObject;
 
 typedef struct
 {
-  uint8_t obj_qty;
-  SipfObjectObject obj;
+    uint8_t obj_qty;
+    SipfObjectObject obj;
 } SipfObjectUp;
 
 typedef struct
 {
-  uint8_t value[16];
+    uint8_t value[16];
 } SipfObjectOtid;
 
 int SipfObjectParse(uint8_t *raw_buff, const uint16_t raw_len, SipfObjectObject *obj);
@@ -71,6 +71,5 @@ int SipfObjectParse(uint8_t *raw_buff, const uint16_t raw_len, SipfObjectObject 
 int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid *otid);
 int SipfObjClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid);
 int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty, uint8_t **p_objs, uint8_t **p_user_send_datetime, uint8_t **p_recv_datetime);
-
 
 #endif

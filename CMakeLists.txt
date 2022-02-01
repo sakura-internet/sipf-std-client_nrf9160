@@ -8,7 +8,6 @@ cmake_minimum_required(VERSION 3.13.1)
 
 set(BOARD_ROOT ${CMAKE_SOURCE_DIR})
 set(ZEPHYR_EXTRA_MODULES 
-    ${CMAKE_SOURCE_DIR}/subsys
     ${CMAKE_SOURCE_DIR}/lib/sipf
 )
 

@@ -36,3 +36,6 @@ CONFIG_SIPF_CONNECTOR_PATH="/v0"
 
 CONFIG_SIPF_FOTA_HOST="ota.sipf-dev.iot.sakura.ad.jp"
 CONFIG_SIPF_FOTA_PATH="v0/sipf-std-client_%s.bin"
+
+CONFIG_SIPF_FILE_REQ_URL_HOST="edge-a-01.dev.iot.sakura.ad.jp"
+CONFIG_SIPF_FILE_REQ_URL_PATH="v3/files/%s/"

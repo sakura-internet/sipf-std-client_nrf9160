@@ -19,4 +19,5 @@ char *SipfClientHttpGetAuthInfo(void);
 
 int SipfClientHttpRunRequest(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res, bool tls);
 
+int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *host, char *path);
 #endif

@@ -7,7 +7,7 @@ function format() {
   clang-format -i -style=file "${filename}"
 }
 
-TARGETS="./src ./include"
+TARGETS="./src ./include ./lib"
 BLACK_LIST=("debug.h" "usbh_conf.h")
 
 for directory in ${TARGETS}; do
