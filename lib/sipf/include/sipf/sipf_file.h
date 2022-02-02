@@ -9,8 +9,8 @@
 #include <net/download_client.h>
 #include <net/http_client.h>
 
-int SipfFileRequestDownloadURL(const char *user_name, const char *password, const char *file_id, char *url);
-int SipfFileRequestUploadURL(const char *user_name, const char *password, const char *file_id, char *url);
+int SipfFileRequestDownloadURL(const char *file_id, char *url, int sz_url);
+int SipfFileRequestUploadURL(const char *file_id, char *url, int sz_url);
 
 #if 0
 struct sipf_file_upload_evt (

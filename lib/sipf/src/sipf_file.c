@@ -34,7 +34,7 @@ enum req_url_type
     REQ_URL_UPLOAD
 };
 
-static int sipfFileRequestDownloadURL(enum req_url_type req_type, const char *user_name, const char *password, const char *file_id, char *url)
+static int sipfFileRequestDownloadURL(enum req_url_type req_type, const char *file_id, char *url, int sz_url)
 {
     int ret;
     /* リクエストを組み立てるよ */
@@ -83,24 +83,29 @@ static int sipfFileRequestDownloadURL(enum req_url_type req_type, const char *us
         return -1;
     }
 
+    if (sz_url > http_res.content_length) {
+        // URLのバッファよりレスポンスボディが大きい
+        return -1;
+    }
+
     strncpy(url, http_res.body_start, http_res.content_length);
-    return 0;
+    return http_res.content_length;
 }
 
 /**
  * ダウンロードURL要求
  */
-int SipfFileRequestDownloadURL(const char *user_name, const char *password, const char *file_id, char *url)
+int SipfFileRequestDownloadURL(const char *file_id, char *url, int sz_url)
 {
-    return sipfFileRequestDownloadURL(REQ_URL_DOWNLOAD, user_name, password, file_id, url);
+    return sipfFileRequestDownloadURL(REQ_URL_DOWNLOAD, file_id, url, sz_url);
 }
 
 /**
  * アップロードURL要求
  */
-int SipfFileRequestUploadURL(const char *user_name, const char *password, const char *file_id, char *url)
+int SipfFileRequestUploadURL(const char *file_id, char *url, int sz_url)
 {
-    return sipfFileRequestDownloadURL(REQ_URL_UPLOAD, user_name, password, file_id, url);
+    return sipfFileRequestDownloadURL(REQ_URL_UPLOAD, file_id, url, sz_url);
 }
 
 #if 0
