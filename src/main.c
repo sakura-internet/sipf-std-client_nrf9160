@@ -444,7 +444,21 @@ void main(void)
     // LTEつながるならOKなFWよね
     boot_write_img_confirmed();
 
-    uint8_t b, prev_auth_mode = 0x00;
+    // 認証モードをSIM認証にする
+    uint8_t b, prev_auth_mode = 0x01;
+    *REG_00_MODE = 0x01;
+    err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
+    LOG_DBG("SipfAuthRequest(): %d", err);
+    if (err < 0) {
+        // IPアドレス認証に失敗した
+        *REG_00_MODE = 0x00; // モードが切り替えられなかった
+    }
+    err = SipfClientHttpSetAuthInfo(user_name, password);
+    if (err < 0) {
+        // 認証情報の設定に失敗した
+        *REG_00_MODE = 0x00; // モードが切り替えられなかった
+    }
+
     UartBrokerPuts("+++ Ready +++\n");
     led_on(LED3_PIN);
     ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
