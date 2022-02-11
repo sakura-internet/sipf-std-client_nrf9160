@@ -22,6 +22,7 @@ int UartBrokerTerm(void);
 int UartBrokerPutByte(uint8_t byte);
 int UartBrokerPut(uint8_t *data, int len);
 int UartBrokerGetByte(uint8_t *byte);
+int UartBrokerGetByteTm(uint8_t *byte, int timeout_ms);
 int UartBrokerGet(uint8_t *data, int len);
 
 int UartBrokerPuts(const char *msg);

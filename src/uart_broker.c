@@ -76,6 +76,11 @@ int UartBrokerGetByte(uint8_t *byte)
     return k_msgq_get(&msgq_rx, byte, K_MSEC(1));
 }
 
+int UartBrokerGetByteTm(uint8_t *byte, int timeout_ms)
+{
+    return k_msgq_get(&msgq_rx, byte, K_MSEC(timeout_ms));
+}
+
 int UartBrokerGet(uint8_t *data, int len)
 {
     int cnt = 0;

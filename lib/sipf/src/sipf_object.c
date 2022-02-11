@@ -49,7 +49,7 @@ int SipfObjectParse(uint8_t *raw_buff, const uint16_t raw_len, SipfObjectObject 
 static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
 {
     if (resp->data_len > 0) {
-        LOG_DBG("HTTP response has come");
+        LOG_INF("HTTP response has come");
         memcpy(user_data, resp, sizeof(struct http_response));
     }
 }

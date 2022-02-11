@@ -342,12 +342,6 @@ static int init_modem_and_lte(void)
         LOG_DBG("Initialize LTE OK");
 
         lte_lc_modem_events_enable();
-        /*
-            err = lte_lc_neighbor_cell_measurement();
-            if (err == 0) {
-              LOG_DBG("lte_lc_neighbor_cell_measurement() success.");
-            }
-        */
 
         LOG_INF("[%d] Trying to attach to LTE network (TIMEOUT: %d ms)", i, REGISTER_TIMEOUT_MS);
         UartBrokerPrint("Trying to attach to LTE network (TIMEOUT: %d ms)\r\n", REGISTER_TIMEOUT_MS);

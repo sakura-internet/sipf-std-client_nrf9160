@@ -61,7 +61,7 @@ int FotaHttpRun(char *file_name_suffix)
     char *protocol = NULL;
     char *host = NULL;
     char *path = NULL;
-    if (SipfClientHttpParseURL(image_url, ret, protocol, host, path) != 0) {
+    if (SipfClientHttpParseURL(image_url, ret, &protocol, &host, &path) != 0) {
         // 分解できなかった
         LOG_ERR("SipfClientHttpParseURL() failed.");
         return -1;

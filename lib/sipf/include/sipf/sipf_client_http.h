@@ -9,6 +9,10 @@
 #include <net/http_client.h>
 #include "sipf/sipf_object.h"
 
+#define HTTP_PORT 80
+#define HTTPS_PORT 443
+#define TLS_SEC_TAG 42
+
 #define BUFF_SZ (1024)
 
 extern uint8_t httpc_req_buff[BUFF_SZ];
@@ -19,5 +23,5 @@ char *SipfClientHttpGetAuthInfo(void);
 
 int SipfClientHttpRunRequest(const char *hostname, struct http_request *req, uint32_t timeout, struct http_response *http_res, bool tls);
 
-int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *host, char *path);
+int SipfClientHttpParseURL(char *url, const int url_len, char **protocol, char **host, char **path);
 #endif

@@ -20,10 +20,6 @@ LOG_MODULE_DECLARE(sipf);
 #define HTTP_BASIC_AUTH_HEADER_PREFIX "Authorization: Basic "
 #define NEWLINE_STRING "\r\n"
 
-#define HTTP_PORT 80
-#define HTTPS_PORT 443
-#define TLS_SEC_TAG 42
-
 uint8_t httpc_req_buff[BUFF_SZ];
 uint8_t httpc_res_buff[BUFF_SZ];
 
@@ -75,7 +71,7 @@ static int tls_setup(int fd, const char *host_name)
 }
 
 /** HTTP Client **/
-int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *host, char *path)
+int SipfClientHttpParseURL(char *url, const int url_len, char **protocol, char **host, char **path)
 {
     // URL文字列からプロトコル、ホスト、パスのポインタをセットする
     enum url_delim
@@ -84,6 +80,7 @@ int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *h
         URL_ROOT1,
         URL_ROOT2,
         URL_HOST_END,
+        URL_PATH_END,
     };
     enum url_delim st = URL_PROTOCOL_END;
 
@@ -92,7 +89,7 @@ int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *h
         *cr = 0x00;
     }
 
-    protocol = url;
+    *protocol = url;
     for (int i = 0; i < url_len; i++) {
         switch (st) {
         case URL_PROTOCOL_END:
@@ -100,31 +97,44 @@ int SipfClientHttpParseURL(char *url, const int url_len, char *protocol, char *h
                 url[i] = 0x00;
                 st = URL_ROOT1;
             }
+            break;
         case URL_ROOT1:
             if (url[i] == '/') {
                 url[i] = 0x00;
                 st = URL_ROOT2;
             }
+            break;
         case URL_ROOT2:
             if (url[i] == '/') {
                 url[i] = 0x00;
-                host = &url[i + 1];
+                *host = &url[i + 1];
                 st = URL_HOST_END;
             }
+            break;
         case URL_HOST_END:
             if (url[i] == '/') {
                 url[i] = 0x00;
-                path = &url[i + 1];
+                *path = &url[i + 1];
+                st = URL_PATH_END;
+            }
+            break;
+        case URL_PATH_END:
+            if ((url[i] == '\r') || (url[i] == '\n')) {
+                url[i] = 0x00;
                 goto parse_finish;
             }
+            break;
         }
     }
     // URL文字列の終端までみたけど分割が終わらなかった
-    if (st != URL_HOST_END) {
+    if (st != URL_PATH_END) {
         return -1;
     }
 parse_finish:
     // URLの分割が終わった
+    LOG_INF("protocol: %s", *protocol);
+    LOG_INF("host: %s", *host);
+    LOG_INF("path: %s", *path);
     return 0;
 }
 

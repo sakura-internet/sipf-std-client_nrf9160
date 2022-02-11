@@ -34,8 +34,10 @@ CONFIG_SIPF_AUTH_PATH="/v0/session_key"
 CONFIG_SIPF_CONNECTOR_HTTP_HOST="connector.sipf-dev.iot.sakura.ad.jp"
 CONFIG_SIPF_CONNECTOR_PATH="/v0"
 
-CONFIG_SIPF_FOTA_HOST="ota.sipf-dev.iot.sakura.ad.jp"
-CONFIG_SIPF_FOTA_PATH="v0/sipf-std-client_%s.bin"
+CONFIG_SIPF_FILE_REQ_URL_HOST="file.sipf-dev.iot.sakura.ad.jp"
+CONFIG_SIPF_FILE_REQ_URL_PATH="/v1/files/%s/"
 
-CONFIG_SIPF_FILE_REQ_URL_HOST="edge-a-01.dev.iot.sakura.ad.jp"
-CONFIG_SIPF_FILE_REQ_URL_PATH="v3/files/%s/"
+CONFIG_NET_LOG=y
+CONFIG_NET_HTTP_LOG_LEVEL_DBG=y
+CONFIG_DOWNLOAD_CLIENT_LOG_LEVEL_DBG=y
+CONFIG_FOTA_DOWNLOAD_LOG_LEVEL_DBG=y

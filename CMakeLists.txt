@@ -20,6 +20,7 @@ target_sources(app PRIVATE
     src/cmd_ascii.c
     src/registers.c
     src/uart_broker.c
+    src/xmodem.c
     src/fota/fota_http.c
     src/gnss/gnss.c
 )

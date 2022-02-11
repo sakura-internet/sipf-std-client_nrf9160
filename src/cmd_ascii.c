@@ -18,6 +18,7 @@ LOG_MODULE_DECLARE(sipf);
 #include "registers.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
+#include "sipf/sipf_file.h"
 #include "gnss/gnss.h"
 
 static uint8_t buff_work[256];
@@ -478,6 +479,42 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
 }
 
 /**
+ * $$FPUTコマンド
+ */
+static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+    int ret;
+    uint8_t buff_up[] = "Hello World!!";
+
+    ret = SipfFileUpload("upload_test", buff_up, sizeof(buff_up));
+    if (ret < 0) {
+        LOG_ERR("SipfFileUpload() failed: %d", ret);
+        return cmdCreateResNg(out_buff, out_buff_len);
+    }
+
+    ret = cmdCreateResOk(out_buff, out_buff_len);
+    return ret;
+}
+
+/**
+ * $$FGETコマンド
+ */
+static int cmdAsciiCmdFget(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+    int ret;
+    static uint8_t buff_down[512];
+
+    ret = SipfFileDownload("upload_test", buff_down, sizeof(buff_down));
+    if (ret < 0) {
+        LOG_ERR("SipfFileDownload() failed: %d", ret);
+        return cmdCreateResNg(out_buff, out_buff_len);
+    }
+
+    ret = cmdCreateResOk(out_buff, out_buff_len);
+    return ret;
+}
+
+/**
  * $$UNLOCKコマンド
  * in_buff: コマンド名より後ろを格納してるバッファ
  */
@@ -519,7 +556,7 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
         return cmdCreateResIllParam(out_buff, out_buff_len);
     }
     if (memcmp(" UPDATE", in_buff, 7) == 0) {
-        if (FotaHttpRun("latest") != 0) {
+        if (FotaHttpRun("sipf-std-client_latest.bin") != 0) {
             // FOTA失敗した
             return cmdCreateResNg(out_buff, out_buff_len);
         }
@@ -646,7 +683,7 @@ static int cmdAsciiCmdGnssNmea(uint8_t *in_buff, uint16_t in_len, uint8_t *out_b
     return (int)(buff - out_buff);
 }
 
-static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TXRAW, cmdAsciiCmdTxRaw}, {CMD_TX, cmdAsciiCmdTx}, {CMD_RX, cmdAsciiCmdRx}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
+static CmdAsciiCmd cmdfunc[] = {{CMD_REG_W, cmdAsciiCmdW}, {CMD_REG_R, cmdAsciiCmdR}, {CMD_TXRAW, cmdAsciiCmdTxRaw}, {CMD_TX, cmdAsciiCmdTx}, {CMD_RX, cmdAsciiCmdRx}, {CMD_FPUT, cmdAsciiCmdFput}, {CMD_FGET, cmdAsciiCmdFget}, {CMD_UNLOCK, cmdAsciiCmdUnlock}, {CMD_UPDATE, cmdAsciiCmdUpdate}, {CMD_GNSS_ENABLE, cmdAsciiCmdGnssEnable}, {CMD_GNSS_GET_LOCATION, cmdAsciiCmdGnssLocation}, {CMD_GNSS_GET_NMEA, cmdAsciiCmdGnssNmea}, {CMD_GNSS_GET_STATUS, cmdAsciiCmdGnssStatus}, {NULL, NULL}};
 
 int CmdAsciiParse(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {
