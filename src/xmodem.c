@@ -6,7 +6,7 @@
 
 LOG_MODULE_DECLARE(sipf);
 
-//static uint8_t xmodem_block[132];
+// static uint8_t xmodem_block[132];
 
 #define XMODEM_BLOCK_BN(b) b[1]
 #define XMODEM_BLOCK_BNC(b) b[2]
@@ -21,10 +21,9 @@ int xmodem_block_validation(uint8_t *block, uint8_t bn)
         LOG_ERR("BN, BNC miss match.");
         return -1;
     }
-
     if ((bn + 1) != XMODEM_BLOCK_BN(block)) {
         // BNが連続してない
-        LOG_ERR("BN Skip");
+        LOG_ERR("BN Skip: %d, %d", bn, XMODEM_BLOCK_BN(block));
         return -1;
     }
 
@@ -39,7 +38,7 @@ int xmodem_block_validation(uint8_t *block, uint8_t bn)
         return XMODEM_BLOCK_BN(block);
     } else {
         // サムが一致しない
-        LOG_ERR("SUM miss match.");
+        LOG_ERR("SUM miss match. s=%02x sum=%02x", s, XMODEM_BLOCK_SUM(block));
         return -1;
     }
 }
@@ -55,11 +54,16 @@ uint8_t *xmodem_data(uint8_t *block)
 int XmodemReceiveStart(void)
 {
     // NAKを送信
-    if (UartBrokerPutByte(0x09) != 0) {
+    if (UartBrokerPutByte(0x15) != 0) {
         // 失敗しちゃった
         return -1;
     }
     return 0;
+}
+
+static int xmodemRequestReSend(void)
+{
+    return XmodemReceiveStart();
 }
 
 /**
@@ -75,7 +79,14 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
     int ret;
 
     ret = UartBrokerGetByteTm(&b, time_out);
-    if (ret != 0) {
+    if (ret == -EAGAIN) {
+        LOG_INF("UartBrokerGetByteTm() timeout: Request Re Send.");
+        ret = xmodemRequestReSend();
+        if (ret < 0) {
+            return -1;
+        }
+        return XMODEM_RECV_RET_RETRY;
+    } else if (ret != 0) {
         LOG_ERR("UartBrokerGetByteTm() failed: %d", ret);
         return ret;
     }
@@ -89,6 +100,11 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
         break;
     case 0x04: // EOT
         // 転送終了
+        // ACK送信
+        if (UartBrokerPutByte(0x06) != 0) {
+            // 失敗しちゃった
+            return -1;
+        }
         return XMODEM_RECV_RET_FINISHED;
     case 0x18: // CAN
         // 中断要求
@@ -113,7 +129,7 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
     int bn_recv = xmodem_block_validation(block, *bn);
     if (bn_recv < 0) {
         // NAK(再送要求)送信
-        if (UartBrokerPutByte(0x09) != 0) {
+        if (xmodemRequestReSend() != 0) {
             // 失敗しちゃった
             return -1;
         }

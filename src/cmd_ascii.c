@@ -16,6 +16,7 @@ LOG_MODULE_DECLARE(sipf);
 
 #include "cmd_ascii.h"
 #include "registers.h"
+#include "xmodem.h"
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"
 #include "sipf/sipf_file.h"
@@ -481,8 +482,34 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
 /**
  * $$FPUTコマンド
  */
+static uint8_t xmodem_block[132];
 static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
 {
+    int ret;
+    ret = XmodemReceiveStart();
+    if (ret < 0) {
+        LOG_ERR("XmodemReceiveStart() faild: %d", ret);
+        return cmdCreateResNg(out_buff, out_buff_len);
+    }
+
+    uint8_t bn = 0;
+    enum xmodem_recv_ret xret;
+    for (;;) {
+        xret = XmodemReceiveBlock(&bn, xmodem_block, 1000);
+        if (xret == XMODEM_RECV_RET_OK) {
+            LOG_HEXDUMP_INF(xmodem_block, 132, "xmodem_block:");
+        } else if (xret == XMODEM_RECV_RET_FINISHED) {
+            LOG_INF("XmodemReceiveBlock() finished.");
+            break;
+        } else if (xret == XMODEM_RECV_RET_RETRY) {
+            LOG_INF("XmodemReceiveBlock() retry.");
+        } else if (xret == XMODEM_RECV_RET_CANCELED) {
+            LOG_INF("XmodemReceiveBlock() canceled.");
+            break;
+        }
+    }
+    return cmdCreateResOk(out_buff, out_buff_len);
+#if 0
     int ret;
     uint8_t buff_up[] = "Hello World!!";
 
@@ -494,6 +521,7 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
 
     ret = cmdCreateResOk(out_buff, out_buff_len);
     return ret;
+#endif
 }
 
 /**
