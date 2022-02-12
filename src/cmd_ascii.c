@@ -483,9 +483,185 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
  * $$FPUTコマンド
  */
 static uint8_t xmodem_block[132];
-static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+
+static int sendChunkedData(int sock, uint8_t *chunk)
+{
+    int len = 0, ret;
+
+    LOG_HEXDUMP_INF(chunk, 128, "chunk:");
+
+    ret = send(sock, &xmodem_block[3], 128, 0);
+    if (ret < 0) {
+        LOG_ERR("send[1]() failed: %d", errno);
+        return -errno;
+    }
+    len += ret;
+    return len;
+}
+
+static int sendChunkedEnd(int sock)
+{
+    return 0;
+}
+
+static int cmdFputSendCb(int sock, struct http_request *req, void *user_data)
 {
     int ret;
+    int total_sent = 0;
+    uint8_t bn = 1;
+
+    //最初のブロックを送る
+    ret = sendChunkedData(sock, &xmodem_block[3]);
+    if (ret < 0) {
+        LOG_ERR("sendChunkedData() failed: %d", ret);
+        return -ret;
+    }
+    total_sent += ret;
+    XmodemReceiveReqNextBlock();
+
+    enum xmodem_recv_ret xret;
+    uint8_t *chunk;
+    for (;;) {
+        xret = XmodemReceiveBlock(&bn, xmodem_block, 1000);
+        if (xret == XMODEM_RECV_RET_OK) {
+            chunk = &xmodem_block[3];
+            // 送信するよ
+            ret = sendChunkedData(sock, chunk);
+            if (ret < 0) {
+                LOG_ERR("sendChunkedData() failed: %d", ret);
+                XmodemReceiveCancel();
+                return ret;
+            }
+            total_sent += ret;
+            // 次ブロック要求
+            XmodemReceiveReqNextBlock();
+        } else if (xret == XMODEM_RECV_RET_FINISHED) {
+            LOG_INF("XmodemReceiveBlock() finished.");
+            break;
+        } else if (xret == XMODEM_RECV_RET_RETRY) {
+            LOG_INF("XmodemReceiveBlock() retry.");
+            // 再送要求
+            XmodemReceiveReqCurrentBlock();
+        } else if (xret == XMODEM_RECV_RET_CANCELED) {
+            LOG_INF("XmodemReceiveBlock() canceled.");
+            break;
+        }
+    }
+    ret = sendChunkedEnd(sock);
+    if (ret < 0) {
+        LOG_ERR("sendChunkedEnd() failed: %d", ret);
+        return ret;
+    }
+    total_sent += ret;
+    return total_sent;
+}
+
+static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
+{
+
+    int ret;
+
+    if (in_buff[0] != 0x20) {
+        // 先頭がスペースじゃない
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    if (in_len < 2) {
+        // file_idが空
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+
+    // file_idとfile_sizeの区切りを探す
+    char *str_file_size = NULL;
+    for (int i = 1; i < in_len; i++) {
+        if (in_buff[i] == 0x20) {
+            in_buff[i] = 0x00;
+            str_file_size = (char *)&in_buff[i + 1];
+        }
+    }
+    if (str_file_size == NULL) {
+        // 区切りが見つからなかった
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+
+    // file_size
+    uint8_t err;
+    uint32_t file_size;
+    if (strlen(str_file_size) != 8) {
+        // 32bit(=4Byte)じゃない
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    file_size = hexToUint8(&str_file_size[0], &err) << 24;
+    if (err) {
+        // 変換失敗
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    file_size += hexToUint8(&str_file_size[2], &err) << 16;
+    if (err) {
+        // 変換失敗
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    file_size += hexToUint8(&str_file_size[4], &err) << 8;
+    if (err) {
+        // 変換失敗
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+    file_size += hexToUint8(&str_file_size[6], &err);
+    if (err) {
+        // 変換失敗
+        return cmdCreateResIllParam(out_buff, out_buff_len);
+    }
+
+    // file_id
+    char *file_id = (char *)&in_buff[1];
+
+    k_msleep(10);
+
+    // XMODEM開始
+    XmodemBegin();
+    // 受信開始
+    ret = XmodemReceiveStart();
+    if (ret < 0) {
+        LOG_ERR("XmodemReceiveStart() failed: %d", ret);
+        return ret;
+    }
+    // 最初のレコードを受信
+    enum xmodem_recv_ret xret;
+    int cnt_retry = 0;
+    uint8_t bn = 0;
+    for (;;) {
+        xret = XmodemReceiveBlock(&bn, xmodem_block, 3000);
+        if (xret == XMODEM_RECV_RET_OK) {
+            break;
+        } else if (xret == XMODEM_RECV_RET_RETRY) {
+            if (cnt_retry < 10) {
+                LOG_INF("Retry");
+                XmodemReceiveReqCurrentBlock();
+            } else {
+                LOG_ERR("Retry over.");
+                XmodemReceiveCancel();
+                XmodemEnd();
+                return cmdCreateResNg(out_buff, out_buff_len);
+            }
+        }
+    }
+
+    ret = SipfFileUpload(file_id, NULL, cmdFputSendCb, file_size);
+    if (ret < 0) {
+        LOG_ERR("SipfFileUpload() failed: %d", ret);
+        ret = cmdCreateResNg(out_buff, out_buff_len);
+    } else {
+        ret = cmdCreateResOk(out_buff, out_buff_len);
+    }
+
+    XmodemEnd();
+
+    k_msleep(10);
+
+    return ret;
+
+#if 0
+    XmodemBegin();
+
     ret = XmodemReceiveStart();
     if (ret < 0) {
         LOG_ERR("XmodemReceiveStart() faild: %d", ret);
@@ -508,19 +684,10 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
             break;
         }
     }
+
+    XmodemEnd();
+
     return cmdCreateResOk(out_buff, out_buff_len);
-#if 0
-    int ret;
-    uint8_t buff_up[] = "Hello World!!";
-
-    ret = SipfFileUpload("upload_test", buff_up, sizeof(buff_up));
-    if (ret < 0) {
-        LOG_ERR("SipfFileUpload() failed: %d", ret);
-        return cmdCreateResNg(out_buff, out_buff_len);
-    }
-
-    ret = cmdCreateResOk(out_buff, out_buff_len);
-    return ret;
 #endif
 }
 

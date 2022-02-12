@@ -137,7 +137,7 @@ int SipfFileUploadComplete(const char *file_id)
     req.method = HTTP_PUT;
 
     int path_len = strlen(CONFIG_SIPF_FILE_REQ_URL_PATH) + sizeof(file_id);
-    if (path_len > strlen(path_endpoint)) {
+    if (path_len > sizeof(path_endpoint)) {
         // PATHがバッファに入り切らない
         LOG_ERR("%s() Path buffer full. path_len=%d", __func__, path_len);
         return -1;
@@ -173,6 +173,47 @@ int SipfFileUploadComplete(const char *file_id)
 }
 
 /** Upload **/
+static int sipfFileCallbackUploadRequest(char *host, char *file_path, http_payload_cb_t cb, int content_length, bool tls)
+{
+    int ret;
+
+    /* */
+    struct http_request req;
+
+    memset(&req, 0, sizeof(req));
+    char header_content_length[30];
+
+    sprintf(header_content_length, "Content-Length: %d\r\n", content_length);
+
+    const char *headers[] = {"Content-Type: application/octet-stream\r\n", header_content_length, NULL};
+
+    req.method = HTTP_PUT;
+    req.url = file_path;
+    req.host = host;
+    req.protocol = "HTTP/1.1";
+    req.payload_cb = cb;
+    req.payload_len = 0;
+    req.header_fields = headers;
+    req.response = http_request_cb;
+    req.recv_buf = httpc_res_buff;
+    req.recv_buf_len = sizeof(httpc_res_buff);
+
+    /* リクエストするよ */
+    static struct http_response http_res;
+    ret = SipfClientHttpRunRequest(host, &req, 3 * MSEC_PER_SEC, &http_res, tls);
+    if (ret < 0) {
+        LOG_ERR("SipfClientHttpRunRequest failed: ret=%d", ret);
+        return ret;
+    }
+    /* ステータスをチェック */
+    if (strcmp(http_res.http_status, "OK") != 0) {
+        // 200 OK以外のレスポンスが返ってきた
+        LOG_ERR("Upload failed: Status=%s", http_res.http_status);
+        return -1;
+    }
+
+    return ret;
+}
 
 static int sipfFileUploadRequest(char *host, char *file_path, uint8_t *buff, int sz_buff, bool tls)
 {
@@ -213,7 +254,7 @@ static int sipfFileUploadRequest(char *host, char *file_path, uint8_t *buff, int
 }
 
 static char image_url[400];
-int SipfFileUpload(char *file_id, uint8_t *buff, int sz_buff)
+int SipfFileUpload(char *file_id, uint8_t *buff, http_payload_cb_t cb, int sz_payload)
 {
     int ret;
     // アップロードURL取得
@@ -254,7 +295,11 @@ int SipfFileUpload(char *file_id, uint8_t *buff, int sz_buff)
     path[0] = '/';
 
     // アップロード
-    ret = sipfFileUploadRequest(host, path, buff, sz_buff, tls);
+    if (cb == NULL) {
+        ret = sipfFileUploadRequest(host, path, buff, sz_payload, tls);
+    } else {
+        ret = sipfFileCallbackUploadRequest(host, path, cb, sz_payload, tls);
+    }
     if (ret < 0) {
         // アップロード失敗
         LOG_ERR("sipfFileUploadRequest(): failed %d", ret);

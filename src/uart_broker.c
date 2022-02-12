@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -18,6 +19,9 @@
 static uint8_t tx_buff[UART_TX_BUF_SZ];
 static uint8_t rx_buff[UART_RX_BUF_SZ];
 
+static bool is_echo = true;
+K_MUTEX_DEFINE(mutex_is_echo);
+
 static struct k_msgq msgq_tx, msgq_rx;
 
 K_THREAD_STACK_DEFINE(stack_ub, STACK_UB_SZ);
@@ -28,14 +32,19 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 {
     const struct device *uart = (struct device *)dev;
     uint8_t b;
-
+    bool e;
     for (;;) {
         // RX
         while (uart_poll_in(uart, &b) == 0) {
             // UARTでなにか受けたら受信キューに突っ込む
             k_msgq_put(&msgq_rx, &b, K_NO_WAIT); // TODO: キューに突っ込めないときどうするか
 
-            uart_poll_out(uart, b); // ECHO BACK
+            k_mutex_lock(&mutex_is_echo, K_FOREVER);
+            e = is_echo;
+            k_mutex_unlock(&mutex_is_echo);
+            if (e) {
+                uart_poll_out(uart, b); // ECHO BACK
+            }
         }
         // TX
         while (k_msgq_get(&msgq_tx, &b, K_USEC(10)) == 0) {
@@ -112,4 +121,12 @@ int UartBrokerInit(const struct device *uart)
 int UartBrokerTerm(void)
 {
     return 0;
+}
+
+bool UartBrokerSetEcho(bool echo)
+{
+    k_mutex_lock(&mutex_is_echo, K_FOREVER);
+    is_echo = echo;
+    k_mutex_unlock(&mutex_is_echo);
+    return echo;
 }

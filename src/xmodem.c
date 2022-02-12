@@ -2,8 +2,8 @@
 
 #include "xmodem.h"
 #include "uart_broker.h"
-#include <logging/log.h>
 
+#include <logging/log.h>
 LOG_MODULE_DECLARE(sipf);
 
 // static uint8_t xmodem_block[132];
@@ -13,17 +13,23 @@ LOG_MODULE_DECLARE(sipf);
 #define XMODEM_BLOCK_DATA_P(b) &b[3]
 #define XMODEM_BLOCK_SUM(b) b[131]
 
-int xmodem_block_validation(uint8_t *block, uint8_t bn)
+static int xmodem_block_validation(uint8_t *block, uint8_t bn)
 {
+    LOG_INF("latest bn: %02x, bn: %02x, bnc: %02x", bn, XMODEM_BLOCK_BN(block), XMODEM_BLOCK_BNC(block));
     // BNチェック
     if ((XMODEM_BLOCK_BN(block) + XMODEM_BLOCK_BNC(block)) != 0xff) {
         // BNとBNCが矛盾してる
         LOG_ERR("BN, BNC miss match.");
         return -1;
     }
-    if ((bn + 1) != XMODEM_BLOCK_BN(block)) {
+    if (bn == XMODEM_BLOCK_BN(block)) {
+        // BNが重複してる
+        LOG_ERR("Dup BN: %d, %d.", bn, XMODEM_BLOCK_BN(block));
+        return -2;
+    }
+    if ((uint8_t)(bn + 1) != XMODEM_BLOCK_BN(block)) {
         // BNが連続してない
-        LOG_ERR("BN Skip: %d, %d", bn, XMODEM_BLOCK_BN(block));
+        LOG_ERR("Skip BN: %d, %d", bn, XMODEM_BLOCK_BN(block));
         return -1;
     }
 
@@ -48,10 +54,17 @@ uint8_t *xmodem_data(uint8_t *block)
     return &block[4];
 }
 
-/**
- * 受信開始
- */
-int XmodemReceiveStart(void)
+static int xmodemSendAck(void)
+{
+    // ACK送信
+    if (UartBrokerPutByte(0x06) != 0) {
+        // 失敗しちゃった
+        return -1;
+    }
+    return 0;
+}
+
+static int xmodemSendNak(void)
 {
     // NAKを送信
     if (UartBrokerPutByte(0x15) != 0) {
@@ -61,9 +74,38 @@ int XmodemReceiveStart(void)
     return 0;
 }
 
-static int xmodemRequestReSend(void)
+void XmodemBegin(void)
 {
-    return XmodemReceiveStart();
+    UartBrokerSetEcho(false);
+}
+
+void XmodemEnd(void)
+{
+    UartBrokerSetEcho(true);
+}
+
+/**
+ * 受信開始
+ */
+int XmodemReceiveStart(void)
+{
+    return xmodemSendNak();
+}
+
+/**
+ * 次ブロック要求
+ */
+int XmodemReceiveReqNextBlock(void)
+{
+    return xmodemSendAck();
+}
+
+/**
+ * 再送要求
+ */
+int XmodemReceiveReqCurrentBlock(void)
+{
+    return xmodemSendNak();
 }
 
 /**
@@ -80,11 +122,7 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
 
     ret = UartBrokerGetByteTm(&b, time_out);
     if (ret == -EAGAIN) {
-        LOG_INF("UartBrokerGetByteTm() timeout: Request Re Send.");
-        ret = xmodemRequestReSend();
-        if (ret < 0) {
-            return -1;
-        }
+        LOG_INF("UartBrokerGetByteTm() timeout.");
         return XMODEM_RECV_RET_RETRY;
     } else if (ret != 0) {
         LOG_ERR("UartBrokerGetByteTm() failed: %d", ret);
@@ -101,9 +139,9 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
     case 0x04: // EOT
         // 転送終了
         // ACK送信
-        if (UartBrokerPutByte(0x06) != 0) {
+        if (xmodemSendAck() != 0) {
             // 失敗しちゃった
-            return -1;
+            return XMODEM_RECV_RET_FAILED;
         }
         return XMODEM_RECV_RET_FINISHED;
     case 0x18: // CAN
@@ -113,8 +151,8 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
 
     // ブロックの残り131Byteを受信する
     for (int i = 0; i < 131; i++) {
-        //キャラ間タイムアウト5[ms]で受信
-        ret = UartBrokerGetByteTm(&b, 5);
+        //キャラ間タイムアウト100[ms]で受信
+        ret = UartBrokerGetByteTm(&b, 100);
         if (ret == 0) {
             // 受信できた
             block[idx_block++] = b;
@@ -127,29 +165,23 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
 
     // ブロックの正当性チェック
     int bn_recv = xmodem_block_validation(block, *bn);
-    if (bn_recv < 0) {
-        // NAK(再送要求)送信
-        if (xmodemRequestReSend() != 0) {
-            // 失敗しちゃった
-            return -1;
-        }
+    if (bn_recv == -1) {
+        // チェックサムとか間違ってたから再送要求
         return XMODEM_RECV_RET_RETRY;
+    } else if (bn_recv == -2) {
+        // 重複してた
+        return XMODEM_RECV_RET_DUP;
     }
 
     // ブロックが正しい
     *bn = bn_recv; // BNを更新
-    // ACK送信
-    if (UartBrokerPutByte(0x06) != 0) {
-        // 失敗しちゃった
-        return -1;
-    }
     return XMODEM_RECV_RET_OK;
 }
 
 /**
  * 受信をやめる
  */
-int XmodemReceiveEnd(void)
+int XmodemReceiveCancel(void)
 {
     // CANを送信
     if (UartBrokerPutByte(0x18) != 0) {
