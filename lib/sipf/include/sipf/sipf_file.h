@@ -17,6 +17,8 @@ int SipfFileRequestUploadURL(const char *file_id, char *url, int sz_url);
 int SipfFileUploadComplete(const char *file_id);
 
 int SipfFileUpload(char *file_id, uint8_t *buff, http_payload_cb_t cb, int sz_payload);
-int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_buff);
+
+typedef int (*sipfFileDownload_cb_t)(uint8_t *buff, size_t len);
+int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_download, sipfFileDownload_cb_t cb);
 
 #endif

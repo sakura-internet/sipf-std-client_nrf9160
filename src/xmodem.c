@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 
 #include "xmodem.h"
 #include "uart_broker.h"
@@ -115,7 +116,7 @@ int XmodemReceiveReqCurrentBlock(void)
  * [in]time_out:受信タイムアウト
  * return:
  */
-enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_out)
+XmodemRecvRet XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_out)
 {
     uint8_t b;
     int ret;
@@ -179,9 +180,9 @@ enum xmodem_recv_ret XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_ou
 }
 
 /**
- * 受信をやめる
+ * 転送をやめる
  */
-int XmodemReceiveCancel(void)
+int XmodemTransmitCancel(void)
 {
     // CANを送信
     if (UartBrokerPutByte(0x18) != 0) {
@@ -189,4 +190,120 @@ int XmodemReceiveCancel(void)
         return -1;
     }
     return 0;
+}
+
+/**
+ * 送信要求待ち
+ */
+XmodemSendRet XmodemSendWaitRequest(int time_out)
+{
+    int ret;
+    uint8_t b;
+
+    for (int i = 0; i < 10; i++) {
+        ret = UartBrokerGetByteTm(&b, time_out / 10);
+        // timeoutとか見る
+        if (ret < 0) {
+            if (ret == -EAGAIN) {
+                LOG_INF("UartBrokerByteTm() timeout.");
+                continue;
+            }
+            return XMODEM_SEND_RET_FAILED;
+        }
+
+        switch (b) {
+        case 0x15: // NAK(送信要求)
+            return XMODEM_SEND_RET_OK;
+            break;
+        case 0x18: // CAN(キャンセル)
+            return XMODEM_SEND_RET_CANCELED;
+            break;
+        default: // 想定外のやつ
+            LOG_INF("Invalid response: %02x", b);
+            break;
+        }
+    }
+    LOG_ERR("XmodemSendWaitRequest() retry over.");
+    return XMODEM_SEND_RET_FAILED;
+}
+
+/**
+ * 送信完了
+ */
+XmodemSendRet XmodemSendEnd(int time_out)
+{
+    int ret;
+    // EOTを送る
+    ret = UartBrokerPutByte(0x04);
+    if (ret < 0) {
+        return XMODEM_SEND_RET_FAILED;
+    }
+
+    // ACKを待つ
+    uint8_t b;
+    ret = UartBrokerGetByteTm(&b, time_out);
+    if (ret < 0) {
+        if (ret == -EAGAIN) {
+            // タイムアウト
+            return XMODEM_SEND_RET_TIMEOUT;
+        }
+        return XMODEM_SEND_RET_FAILED;
+    }
+
+    if (b == 0x06) {
+        // ACK
+        return XMODEM_SEND_RET_OK;
+    } else {
+        return XMODEM_SEND_RET_FAILED;
+    }
+}
+
+/**
+ * ブロック送信
+ */
+XmodemSendRet XmodemSendBlock(uint8_t *bn, uint8_t *payload, int sz_payload, int time_out)
+{
+    int ret;
+    static uint8_t block[132];
+
+    if (sz_payload > 128) {
+        return XMODEM_SEND_RET_FAILED;
+    }
+
+    memset(block, 0x1a, sizeof(block)); // 先にパディングのEOFで埋めておく
+
+    block[0] = 0x01;                        // SOH
+    block[1] = *bn;                         // BN
+    block[2] = ~*bn;                        // BNC
+    memcpy(&block[3], payload, sz_payload); // DATA
+    block[131] = 0;                         // SUM
+    for (int i = 3; i < 131; i++) {
+        block[131] += block[i];
+    }
+
+    // LOG_HEXDUMP_INF(block, sizeof(block), "block:");
+
+    ret = UartBrokerPut(block, 132);
+    if (ret < 0) {
+        return XMODEM_SEND_RET_FAILED;
+    }
+
+    // 応答を待つ
+    uint8_t b;
+    ret = UartBrokerGetByteTm(&b, time_out);
+    if (ret == -EAGAIN) {
+        return XMODEM_SEND_RET_TIMEOUT;
+    } else if (ret < 0) {
+        return XMODEM_SEND_RET_FAILED;
+    }
+
+    LOG_INF("Received: %02x", b);
+    if (b == 0x06) { // ACK
+        return XMODEM_SEND_RET_OK;
+    } else if (b == 0x15) { // NAK
+        return XMODEM_SEND_RET_RETRY;
+    } else {
+        // 想定外のなにか来た
+        return XMODEM_SEND_RET_FAILED;
+    }
 }

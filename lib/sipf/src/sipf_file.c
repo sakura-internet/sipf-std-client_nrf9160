@@ -320,9 +320,11 @@ int SipfFileUpload(char *file_id, uint8_t *buff, http_payload_cb_t cb, int sz_pa
  * Download
  */
 static K_SEM_DEFINE(sem_dl_finish, 0, 1);
-
+static sipfFileDownload_cb_t dl_cb = NULL;
 int download_client_callback(const struct download_client_evt *event)
 {
+    int ret;
+
     if (event == NULL) {
         return -EINVAL;
     }
@@ -330,6 +332,12 @@ int download_client_callback(const struct download_client_evt *event)
     switch (event->id) {
     case DOWNLOAD_CLIENT_EVT_FRAGMENT:
         LOG_INF("DOWNLOAD_CLIENT_EVT_FRAGMENT");
+        if (dl_cb) {
+            ret = dl_cb((uint8_t *)event->fragment.buf, event->fragment.len);
+            if (ret < 0) {
+                return ret;
+            }
+        }
         break;
     case DOWNLOAD_CLIENT_EVT_DONE:
         LOG_INF("DOWNLOAD_CLIENT_EVT_DONE");
@@ -344,7 +352,7 @@ int download_client_callback(const struct download_client_evt *event)
     return 0;
 }
 
-int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_buff)
+int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_download, sipfFileDownload_cb_t cb)
 {
     int ret;
     dl_buff = buff;
@@ -381,13 +389,14 @@ int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_buff)
         return -1;
     }
 
-    // Dwonload Clientの設定
+    // Download Clientの設定
     struct download_client_cfg config = {
-        .sec_tag = sec_tag, .apn = NULL, .frag_size_override = sz_buff, .set_tls_hostname = (sec_tag != -1),
+        .sec_tag = sec_tag, .apn = NULL, .frag_size_override = sz_download, .set_tls_hostname = (sec_tag != -1),
     };
 
     // Download Client初期化
     struct download_client dc;
+    dl_cb = cb; // FLAGMENTダウンロードイベントで呼ぶコールバック関数を設定
     ret = download_client_init(&dc, download_client_callback);
     if (ret != 0) {
         LOG_ERR("download_client_init() failed: %d", ret);
@@ -422,7 +431,6 @@ int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_buff)
     }
 
     LOG_INF("file_size: %d", dc.file_size);
-    LOG_HEXDUMP_INF(dc.buf, dc.file_size, "buf:");
     download_client_disconnect(&dc);
     return 0;
 }
