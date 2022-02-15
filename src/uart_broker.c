@@ -58,7 +58,6 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 int UartBrokerPutByte(uint8_t byte)
 {
     return k_msgq_put(&msgq_tx, &byte, K_MSEC(10));
-    ;
 }
 
 int UartBrokerPut(uint8_t *data, int len)

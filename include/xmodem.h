@@ -1,6 +1,8 @@
 #ifndef _XMODEM_H_
 #define _XMODEM_H_
 
+#define XMODEM_SZ_BLOCK (128)
+
 typedef enum xmodem_recv_ret {
     XMODEM_RECV_RET_OK,
     XMODEM_RECV_RET_FINISHED,

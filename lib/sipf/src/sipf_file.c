@@ -21,9 +21,9 @@ static char path_endpoint[128];
  */
 static void http_request_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
 {
-    LOG_INF("resp->http_status: %s", resp->http_status);
+    LOG_DBG("resp->http_status: %s", resp->http_status);
     if (resp->data_len > 0) {
-        LOG_INF("HTTP response has come");
+        LOG_DBG("HTTP response has come");
         memcpy(user_data, resp, sizeof(struct http_response));
     }
 }
@@ -66,7 +66,7 @@ static int sipfFileRequestURL(enum req_url_type req_type, const char *file_id, c
         return -1;
     }
     ret = sprintf(path_endpoint, CONFIG_SIPF_FILE_REQ_URL_PATH, file_id);
-    LOG_INF("REQEST URL: %s", path_endpoint);
+    LOG_DBG("REQEST URL: %s", path_endpoint);
 
     req.url = path_endpoint;
     req.host = CONFIG_SIPF_FILE_REQ_URL_HOST;
@@ -81,7 +81,7 @@ static int sipfFileRequestURL(enum req_url_type req_type, const char *file_id, c
     /* リクエストするよ */
     static struct http_response http_res;
     ret = SipfClientHttpRunRequest(CONFIG_SIPF_FILE_REQ_URL_HOST, &req, 3 * MSEC_PER_SEC, &http_res, false /*true*/);
-    LOG_INF("SipfClientHttpRunRequest(): %d", ret);
+    LOG_DBG("SipfClientHttpRunRequest(): %d", ret);
     if (ret < 0) {
         LOG_ERR("SipfClientHttpRunRequest() failed.");
         return ret;
@@ -335,6 +335,7 @@ int download_client_callback(const struct download_client_evt *event)
         if (dl_cb) {
             ret = dl_cb((uint8_t *)event->fragment.buf, event->fragment.len);
             if (ret < 0) {
+                k_sem_give(&sem_dl_finish);
                 return ret;
             }
         }
@@ -345,7 +346,8 @@ int download_client_callback(const struct download_client_evt *event)
         break;
     case DOWNLOAD_CLIENT_EVT_ERROR:
         LOG_ERR("DOWNLOAD_CLIENT_EVT_ERR");
-        break;
+        k_sem_give(&sem_dl_finish);
+        return -1;
     default:
         break;
     }
@@ -417,7 +419,7 @@ int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_download, sip
     }
 
     //ダウンロード終了まち
-    ret = k_sem_take(&sem_dl_finish, K_MSEC(10000));
+    ret = k_sem_take(&sem_dl_finish, K_FOREVER /*K_MSEC(10000)*/);
     if (ret == -EAGAIN) {
         // タイムアウト
         LOG_ERR("k_sem_take(sem_dl_finish): timeout.");
@@ -430,7 +432,7 @@ int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_download, sip
         return ret;
     }
 
-    LOG_INF("file_size: %d", dc.file_size);
+    LOG_DBG("file_size: %d", dc.file_size);
     download_client_disconnect(&dc);
-    return 0;
+    return dc.file_size;
 }

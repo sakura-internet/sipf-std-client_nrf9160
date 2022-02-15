@@ -150,7 +150,7 @@ static int cmdAsciiCmdR(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, ui
         return cmdCreateResIllParam(out_buff, out_buff_len);
     }
 
-    return sprintf(out_buff, "%02x\r\nOK\r\n", val);
+    return sprintf(out_buff, "%02X\r\nOK\r\n", val);
 }
 
 static int checkTypeLen(uint8_t type_id, uint16_t len)
@@ -468,7 +468,7 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
             LOG_ERR("SipfObjectParse() failed...");
             return cmdCreateResNg(out_buff, out_buff_len);
         }
-        idx += sprintf(&out_buff[idx], "%02x %02x %02x ", obj.obj_tagid, obj.obj_type, obj.value_len);
+        idx += sprintf(&out_buff[idx], "%02X %02X %02X ", obj.obj_tagid, obj.obj_type, obj.value_len);
         for (int j = 0; j < obj.value_len; j++) {
             idx += sprintf(&out_buff[idx], "%02X", obj.value[j]);
         }
@@ -662,31 +662,55 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
 /**
  * $$FGETコマンド
  */
-uint8_t fget_bn;
+static uint8_t fget_bn;
 #define FPUT_BLOCK_SEND_RETRY (3)
 static int cmdFgetCb(uint8_t *buff, size_t len)
 {
     XmodemSendRet xret;
-    for (int i = 0; i < FPUT_BLOCK_SEND_RETRY; i++) {
-        xret = XmodemSendBlock(&fget_bn, buff, len, 500);
-        if (xret == XMODEM_SEND_RET_FAILED) {
-            LOG_ERR("XmodemSendBlock() failed.");
-            return -1;
-        }
-        if (xret == XMODEM_SEND_RET_TIMEOUT) {
-            LOG_ERR("XmodemSendBlock() timeout.");
-            continue;
-        }
-        if (xret == XMODEM_SEND_RET_RETRY) {
-            LOG_ERR("XmodemSendBlock() retry.");
-            continue;
-        }
-        if (xret == XMODEM_SEND_RET_OK) {
-            fget_bn++; // ブロック番号をインクリメント
-            return 0;
+    int payload_len;
+    for (int idx = 0; idx < len; idx += XMODEM_SZ_BLOCK) {
+        for (int i = 0; i < FPUT_BLOCK_SEND_RETRY; i++) {
+            // xret = XmodemSendBlock(&fget_bn, buff, len, 500);
+            if ((len - idx) < XMODEM_SZ_BLOCK) {
+                payload_len = len % XMODEM_SZ_BLOCK;
+            } else {
+                payload_len = XMODEM_SZ_BLOCK;
+            }
+            xret = XmodemSendBlock(&fget_bn, &buff[idx], payload_len, 500);
+            if (xret == XMODEM_SEND_RET_FAILED) {
+                LOG_ERR("XmodemSendBlock() failed.");
+                return -1;
+            }
+            if (xret == XMODEM_SEND_RET_TIMEOUT) {
+                LOG_ERR("XmodemSendBlock() timeout.");
+                continue;
+            }
+            if (xret == XMODEM_SEND_RET_RETRY) {
+                LOG_ERR("XmodemSendBlock() retry.");
+                continue;
+            }
+            if (xret == XMODEM_SEND_RET_CANCELED) {
+                LOG_INF("XmodemSendBlock() canceled.");
+                return -2;
+            }
+            if (xret == XMODEM_SEND_RET_OK) {
+                fget_bn++; // ブロック番号をインクリメント
+                break;
+            }
         }
     }
     return 0;
+}
+
+static int cmdFgetOkRes(int file_size, uint8_t *out_buff, int out_buff_len)
+{
+    return sprintf(out_buff, "\r\n%08X\r\nOK\r\n", file_size);
+}
+
+static int cmdFgetNgRes(uint8_t *out_buff, int out_buff_len)
+{
+    int len = sprintf(out_buff, "\r\nNG\r\n");
+    return len;
 }
 
 static int cmdAsciiCmdFget(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
@@ -712,38 +736,41 @@ static int cmdAsciiCmdFget(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
     XmodemSendRet xret = XmodemSendWaitRequest(30000);
     if (xret != XMODEM_SEND_RET_OK) {
         LOG_ERR("XmodemSendWaitRequest() failed: %d", xret);
-        ret = cmdCreateResNg(out_buff, out_buff_len);
+        XmodemTransmitCancel();
+        ret = cmdFgetNgRes(out_buff, out_buff_len);
         goto fget_end;
     }
     fget_bn = 1; // ブロック番号を初期化
 
     // ファイルのダウンロードを開始
-    ret = SipfFileDownload(file_id, NULL, 128, cmdFgetCb);
+    ret = SipfFileDownload(file_id, NULL, XMODEM_SZ_BLOCK * 8, cmdFgetCb);
     if (ret < 0) {
         LOG_ERR("SipfFileDownload() failed: %d", ret);
-        ret = cmdCreateResNg(out_buff, out_buff_len);
+        XmodemTransmitCancel();
+        ret = cmdFgetNgRes(out_buff, out_buff_len);
         goto fget_end;
     }
+    LOG_INF("SipfFileDownload: ret=%d", ret);
     // XMODEM: 送信終了
     xret = XmodemSendEnd(500);
     if (xret == XMODEM_SEND_RET_TIMEOUT) {
         LOG_ERR("XmodemSendEnd() TIMEOUT.");
-        ret = cmdCreateResNg(out_buff, out_buff_len);
+        XmodemTransmitCancel();
+        ret = cmdFgetNgRes(out_buff, out_buff_len);
         goto fget_end;
     }
     if (xret == XMODEM_SEND_RET_FAILED) {
         LOG_ERR("XmodemSendEnd() FAILED.");
-        ret = cmdCreateResNg(out_buff, out_buff_len);
+        XmodemTransmitCancel();
+        ret = cmdFgetNgRes(out_buff, out_buff_len);
         goto fget_end;
     }
-    ret = cmdCreateResOk(out_buff, out_buff_len);
+    ret = cmdFgetOkRes(ret, out_buff, out_buff_len);
 
 fget_end:
     // XMODEM終了
     XmodemEnd();
-
     k_msleep(10);
-
     return ret;
 }
 

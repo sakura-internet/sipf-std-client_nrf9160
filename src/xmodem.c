@@ -77,11 +77,15 @@ static int xmodemSendNak(void)
 
 void XmodemBegin(void)
 {
+    // uint8_t b;
+    // while (UartBrokerGetByteTm(&b, 100) != -EAGAIN);
     UartBrokerSetEcho(false);
 }
 
 void XmodemEnd(void)
 {
+    // uint8_t b;
+    // while (UartBrokerGetByteTm(&b, 100) != -EAGAIN);
     UartBrokerSetEcho(true);
 }
 
@@ -297,11 +301,13 @@ XmodemSendRet XmodemSendBlock(uint8_t *bn, uint8_t *payload, int sz_payload, int
         return XMODEM_SEND_RET_FAILED;
     }
 
-    LOG_INF("Received: %02x", b);
+    LOG_DBG("Received: %02x", b);
     if (b == 0x06) { // ACK
         return XMODEM_SEND_RET_OK;
     } else if (b == 0x15) { // NAK
         return XMODEM_SEND_RET_RETRY;
+    } else if (b == 0x18) { // CAN
+        return XMODEM_SEND_RET_CANCELED;
     } else {
         // 想定外のなにか来た
         return XMODEM_SEND_RET_FAILED;
