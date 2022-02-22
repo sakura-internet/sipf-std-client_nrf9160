@@ -479,6 +479,23 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
     return idx;
 }
 
+/*** ファイル送受信コマンド ***/
+static int cmdFputOkRes(int file_size, uint8_t *out_buff, int out_buff_len)
+{
+    return sprintf(out_buff, "%08X\r\nOK\r\n", file_size);
+}
+
+static int cmdFgetOkRes(int file_size, uint8_t *out_buff, int out_buff_len)
+{
+    return sprintf(out_buff, "\r\n%08X\r\nOK\r\n", file_size);
+}
+
+static int cmdFgetNgRes(uint8_t *out_buff, int out_buff_len)
+{
+    int len = sprintf(out_buff, "\r\nNG\r\n");
+    return len;
+}
+
 /**
  * $$FPUTコマンド
  */
@@ -521,6 +538,7 @@ static int cmdFputSendCb(int sock, struct http_request *req, void *user_data)
 
     enum xmodem_recv_ret xret;
     uint8_t *chunk;
+    int cnt_retry = 0;
     for (;;) {
         xret = XmodemReceiveBlock(&bn, xmodem_block, 1000);
         if (xret == XMODEM_RECV_RET_OK) {
@@ -534,11 +552,17 @@ static int cmdFputSendCb(int sock, struct http_request *req, void *user_data)
             }
             total_sent += ret;
             // 次ブロック要求
+            cnt_retry = 0;
             XmodemReceiveReqNextBlock();
         } else if (xret == XMODEM_RECV_RET_FINISHED) {
             LOG_INF("XmodemReceiveBlock() finished.");
             break;
         } else if (xret == XMODEM_RECV_RET_RETRY) {
+            if (cnt_retry++ > 10) {
+                LOG_ERR("XmodemReceiveBlock() retry over.");
+                XmodemTransmitCancel();
+                return -1;
+            }
             LOG_INF("XmodemReceiveBlock() retry.");
             // 再送要求
             XmodemReceiveReqCurrentBlock();
@@ -632,7 +656,7 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
         if (xret == XMODEM_RECV_RET_OK) {
             break;
         } else if (xret == XMODEM_RECV_RET_RETRY) {
-            if (cnt_retry < 10) {
+            if (cnt_retry++ < 10) {
                 LOG_INF("Retry");
                 XmodemReceiveReqCurrentBlock();
             } else {
@@ -641,6 +665,10 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
                 XmodemEnd();
                 return cmdCreateResNg(out_buff, out_buff_len);
             }
+        } else {
+            LOG_ERR("XmodemReceiveBlock() failed: %d", xret);
+            ret = cmdCreateResNg(out_buff, out_buff_len);
+            goto fput_end;
         }
     }
 
@@ -649,9 +677,9 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
         LOG_ERR("SipfFileUpload() failed: %d", ret);
         ret = cmdCreateResNg(out_buff, out_buff_len);
     } else {
-        ret = cmdCreateResOk(out_buff, out_buff_len);
+        ret = cmdFputOkRes(file_size, out_buff, out_buff_len);
     }
-
+fput_end:
     XmodemEnd();
 
     k_msleep(10);
@@ -670,7 +698,6 @@ static int cmdFgetCb(uint8_t *buff, size_t len)
     int payload_len;
     for (int idx = 0; idx < len; idx += XMODEM_SZ_BLOCK) {
         for (int i = 0; i < FPUT_BLOCK_SEND_RETRY; i++) {
-            // xret = XmodemSendBlock(&fget_bn, buff, len, 500);
             if ((len - idx) < XMODEM_SZ_BLOCK) {
                 payload_len = len % XMODEM_SZ_BLOCK;
             } else {
@@ -700,17 +727,6 @@ static int cmdFgetCb(uint8_t *buff, size_t len)
         }
     }
     return 0;
-}
-
-static int cmdFgetOkRes(int file_size, uint8_t *out_buff, int out_buff_len)
-{
-    return sprintf(out_buff, "\r\n%08X\r\nOK\r\n", file_size);
-}
-
-static int cmdFgetNgRes(uint8_t *out_buff, int out_buff_len)
-{
-    int len = sprintf(out_buff, "\r\nNG\r\n");
-    return len;
 }
 
 static int cmdAsciiCmdFget(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, uint16_t out_buff_len)
@@ -773,6 +789,8 @@ fget_end:
     k_msleep(10);
     return ret;
 }
+
+/*** 管理コマンド ***/
 
 /**
  * $$UNLOCKコマンド
@@ -839,6 +857,8 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
         return cmdCreateResIllParam(out_buff, out_buff_len);
     }
 }
+
+/*** GNSSコマンド ***/
 
 /**
  * $$GNSSEN コマンド

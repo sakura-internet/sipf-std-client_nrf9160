@@ -89,6 +89,11 @@ int UartBrokerGetByteTm(uint8_t *byte, int timeout_ms)
     return k_msgq_get(&msgq_rx, byte, K_MSEC(timeout_ms));
 }
 
+void UartBrokerClearRecveiveQueue(void)
+{
+    k_msgq_purge(&msgq_rx);
+}
+
 int UartBrokerGet(uint8_t *data, int len)
 {
     int cnt = 0;

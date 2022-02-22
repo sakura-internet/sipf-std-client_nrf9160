@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 SAKURA internet Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include <stdint.h>
 #include <string.h>
 
@@ -77,15 +82,12 @@ static int xmodemSendNak(void)
 
 void XmodemBegin(void)
 {
-    // uint8_t b;
-    // while (UartBrokerGetByteTm(&b, 100) != -EAGAIN);
     UartBrokerSetEcho(false);
+    UartBrokerClearRecveiveQueue();
 }
 
 void XmodemEnd(void)
 {
-    // uint8_t b;
-    // while (UartBrokerGetByteTm(&b, 100) != -EAGAIN);
     UartBrokerSetEcho(true);
 }
 
@@ -152,6 +154,10 @@ XmodemRecvRet XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_out)
     case 0x18: // CAN
         // 中断要求
         return XMODEM_RECV_RET_CANCELED;
+    default:
+        // 想定外のなにか
+        LOG_ERR("Invalid HEADER: %02x", b);
+        return XMODEM_RECV_RET_RETRY;
     }
 
     // ブロックの残り131Byteを受信する
@@ -163,7 +169,8 @@ XmodemRecvRet XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_out)
             block[idx_block++] = b;
         } else {
             // 失敗
-            LOG_ERR("UartBrokerGetByteTm() failed: %d", ret);
+            LOG_HEXDUMP_ERR(block, 132, "block:");
+            LOG_ERR("%s(): Failed receive block: %d", __func__, ret);
             return ret;
         }
     }
@@ -189,6 +196,10 @@ XmodemRecvRet XmodemReceiveBlock(uint8_t *bn, uint8_t *block, int time_out)
 int XmodemTransmitCancel(void)
 {
     // CANを送信
+    if (UartBrokerPutByte(0x18) != 0) {
+        // 送信失敗
+        return -1;
+    }
     if (UartBrokerPutByte(0x18) != 0) {
         // 送信失敗
         return -1;

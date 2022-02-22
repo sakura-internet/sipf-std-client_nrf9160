@@ -96,7 +96,7 @@ static struct gpio_callback gpio_cb;
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
 {
     //リブート要求
-    UartBrokerPrint("RESET_REQ_DETECT\n");
+    UartBrokerPrint("RESET_REQ_DETECT\r\n");
     k_sem_give(&reset_request);
 }
 
@@ -241,11 +241,11 @@ static void lte_handler(const struct lte_lc_evt *const evt)
     case LTE_LC_EVT_NW_REG_STATUS:
         LOG_DBG("- evt->nw_reg_status=%d\n", evt->nw_reg_status);
         if (evt->nw_reg_status == LTE_LC_NW_REG_SEARCHING) {
-            UartBrokerPrint("SEARCHING\n");
+            UartBrokerPrint("SEARCHING\r\n");
             break;
         }
         if ((evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME) || (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING)) {
-            UartBrokerPrint("REGISTERD\n");
+            UartBrokerPrint("REGISTERD\r\n");
             k_sem_give(&lte_connected);
             break;
         }
@@ -352,7 +352,7 @@ static int init_modem_and_lte(void)
         }
         err = k_sem_take(&lte_connected, K_MSEC(REGISTER_TIMEOUT_MS));
         if (err == -EAGAIN) {
-            UartBrokerPrint("TIMEOUT\n");
+            UartBrokerPrint("TIMEOUT\r\n");
             lte_lc_offline();
             lte_lc_deinit();
             continue;
@@ -380,7 +380,7 @@ static int init_modem_and_lte(void)
                         iccid_top[i] = 0x00;
                     }
                 }
-                UartBrokerPrint("ICCID: %s\n", iccid_top);
+                UartBrokerPrint("ICCID: %s\r\n", iccid_top);
             }
             return 0;
         } else {
@@ -406,15 +406,15 @@ void main(void)
     // UartBrokerの初期化(以降、Debug系の出力も可能)
     uart_dev = device_get_binding(UART_LABEL);
     UartBrokerInit(uart_dev);
-    UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
+    UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
 #ifdef CONFIG_LTE_LOCK_PLMN
-    UartBrokerPuts("* PLMN: " CONFIG_LTE_LOCK_PLMN_STRING "\n");
+    UartBrokerPuts("* PLMN: " CONFIG_LTE_LOCK_PLMN_STRING "\r\n");
 #endif
 #ifdef CONFIG_SIPF_AUTH_DISABLE_SSL
-    UartBrokerPuts("* Disable SSL, AUTH endpoint.\n");
+    UartBrokerPuts("* Disable SSL, AUTH endpoint.\r\n");
 #endif
 #ifdef CONFIG_SIPF_CONNECTOR_DISABLE_SSL
-    UartBrokerPuts("* Disable SSL, CONNECTOR endpoint.\n");
+    UartBrokerPuts("* Disable SSL, CONNECTOR endpoint.\r\n");
 #endif
     // LEDの初期化
     led_init();
@@ -432,7 +432,7 @@ void main(void)
 
     // GNSSの初期化
     if (gnss_init() != 0) {
-        UartBrokerPuts("Failed to initialize GNSS peripheral\n");
+        UartBrokerPuts("Failed to initialize GNSS peripheral\r\n");
     }
 
     // LTEつながるならOKなFWよね
@@ -453,7 +453,7 @@ void main(void)
         *REG_00_MODE = 0x00; // モードが切り替えられなかった
     }
 
-    UartBrokerPuts("+++ Ready +++\n");
+    UartBrokerPuts("+++ Ready +++\r\n");
     led_on(LED3_PIN);
     ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
     for (;;) {

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 SAKURA internet Inc.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef _XMODEM_H_
 #define _XMODEM_H_
 
