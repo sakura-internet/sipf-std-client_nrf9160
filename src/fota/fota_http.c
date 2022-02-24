@@ -92,7 +92,7 @@ int FotaHttpRun(char *file_name_suffix)
     UartBrokerPuts("/");
     UartBrokerPuts(path);
     UartBrokerPuts("\r\n");
-    ret = fota_download_start(host, path, sec_tag, NULL, 0);
+    ret = fota_download_start(host, path, sec_tag, NULL, 1024);
     if (ret != 0) {
         LOG_ERR("fota_download_start() failed: %d", ret);
         return ret;

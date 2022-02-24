@@ -28,26 +28,40 @@ K_THREAD_STACK_DEFINE(stack_ub, STACK_UB_SZ);
 static struct k_thread thread_ub;
 static k_tid_t tid_ub;
 
+static void uart_broker_fifo_cb(const struct device *uart, void *user_data)
+{
+    ARG_UNUSED(user_data);
+
+    if (uart_irq_update(uart) != 1) {
+        return;
+    }
+
+    if (uart_irq_rx_ready(uart) == 1) {
+        bool e;
+        uint8_t b;
+        uart_fifo_read(uart, &b, 1);
+        k_msgq_put(&msgq_rx, &b, K_NO_WAIT);
+        // ECHO BACK
+        k_mutex_lock(&mutex_is_echo, K_FOREVER);
+        e = is_echo;
+        k_mutex_unlock(&mutex_is_echo);
+        if (e) {
+            uart_poll_out(uart, b); // ECHO BACK
+        }
+    }
+}
+
 static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 {
     const struct device *uart = (struct device *)dev;
     uint8_t b;
-    bool e;
-    for (;;) {
-        // RX
-        while (uart_poll_in(uart, &b) == 0) {
-            // UARTでなにか受けたら受信キューに突っ込む
-            k_msgq_put(&msgq_rx, &b, K_NO_WAIT); // TODO: キューに突っ込めないときどうするか
 
-            k_mutex_lock(&mutex_is_echo, K_FOREVER);
-            e = is_echo;
-            k_mutex_unlock(&mutex_is_echo);
-            if (e) {
-                uart_poll_out(uart, b); // ECHO BACK
-            }
-        }
+    uart_irq_callback_set(uart, uart_broker_fifo_cb);
+    uart_irq_rx_enable(uart);
+    
+    for (;;) {
         // TX
-        while (k_msgq_get(&msgq_tx, &b, K_USEC(10)) == 0) {
+        while (k_msgq_get(&msgq_tx, &b, K_USEC(1)) == 0) {
             // 送信キューになにか入ってた
             uart_poll_out(uart, b);
         }
