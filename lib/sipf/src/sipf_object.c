@@ -107,10 +107,12 @@ int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid
     httpc_req_buff[9] = 0x00;
 
     // PAYLOAD_SIZE(BigEndian)
+    LOG_INF("payload_size: %d", size);
     httpc_req_buff[10] = size >> 8;
     httpc_req_buff[11] = size & 0xff;
 
     memcpy(&httpc_req_buff[12], payload_buffer, size);
+    LOG_HEXDUMP_DBG(httpc_req_buff, sz_packet, "request:");
 
     static struct http_response http_res;
     int ret = run_connector_http_request(httpc_req_buff, sz_packet, &http_res);
@@ -122,9 +124,7 @@ int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid
 
     LOG_DBG("Response status %s", http_res.http_status);
     LOG_DBG("content-length: %d", http_res.content_length);
-    for (int i = 0; i < http_res.content_length; i++) {
-        LOG_DBG("0x%02x ", http_res.body_start[i]);
-    }
+    LOG_HEXDUMP_DBG(http_res.body_start, http_res.content_length, "response:");
 
     // OBJID_NOTIFICATIONをパース
     uint8_t *sipf_obj_head = &http_res.body_start[0];
@@ -152,7 +152,7 @@ int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid
 
     if (sipf_obj_payload[0] != 0x00) {
         // ResultがOKじゃない
-        LOG_WRN("Invalid result 0x%02x", sipf_obj_head[0]);
+        LOG_WRN("Invalid result 0x%02x", sipf_obj_payload[0]);
         return -1;
     }
 

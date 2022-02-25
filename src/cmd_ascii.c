@@ -834,6 +834,9 @@ static int cmdAsciiCmdUpdate(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buf
         return cmdCreateResIllParam(out_buff, out_buff_len);
     }
     if (memcmp(" UPDATE", in_buff, 7) == 0) {
+        if (in_len != 7) {
+            return cmdCreateResIllParam(out_buff, out_buff_len);
+        }
         if (FotaHttpRun("app_update.bin") != 0) {
             // FOTA失敗した
             return cmdCreateResNg(out_buff, out_buff_len);

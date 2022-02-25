@@ -87,10 +87,8 @@ int FotaHttpRun(char *file_name_suffix)
         return ret;
     }
     // FOTA開始(HTTPで)
-    UartBrokerPuts("DOWNLOAD FROM ");
-    UartBrokerPuts(host);
-    UartBrokerPuts("/");
-    UartBrokerPuts(path);
+    UartBrokerPuts("DOWNLOAD FILE: ");
+    UartBrokerPuts(file_name_suffix);
     UartBrokerPuts("\r\n");
     ret = fota_download_start(host, path, sec_tag, NULL, 1024);
     if (ret != 0) {
