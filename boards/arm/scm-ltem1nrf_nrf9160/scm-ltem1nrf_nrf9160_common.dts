@@ -5,7 +5,7 @@
  */
 
 / {
-	model = "Nordic nRF9160 M5Stack NRF9160";
+	model = "SCM-LTEM1NRF/SCO-M5SNRF9160";
 	compatible = "nordic,nrf9160-dk-nrf9160";
 
 	chosen {
@@ -188,4 +188,4 @@
 };
 
 /* Include partition configuration file */
-#include "m5stack_nrf9160_partition_conf.dts"
+#include "scm-ltem1nrf_nrf9160_partition_conf.dts"

@@ -1,0 +1,35 @@
+#
+# Copyright (c) 2021 SAKURA internet Inc.
+#
+# SPDX-License-Identifier: MIT
+#
+
+menuconfig SIPF 
+	bool "SIPF client library"
+	default n
+
+#SIPF AUTH Protocol
+config SIPF_AUTH_HOST
+	string "SIPF AUTH host name."
+config SIPF_AUTH_PATH
+	string "SIPF AUTH endpoint."
+config SIPF_AUTH_DISABLE_SSL
+	bool "Disable SSL for SIPF AUTH endpoint."
+
+#SIPF OBJECT Protocol
+config SIPF_CONNECTOR_HTTP_HOST
+	string "SIPF CONNECTOR HTTP host name."
+config SIPF_CONNECTOR_PATH
+	string "SIPF CONNECTOR HTTP endpoint."
+config SIPF_CONNECTOR_DISABLE_SSL
+	bool "Disable SSL for SIPF CONNECTOR HTTP endpoint."
+
+#SIPF FILE Protocol
+config SIPF_FILE_REQ_URL_HOST
+	string "Host name of SIPF FILE: Request URL."
+config SIPF_FILE_REQ_URL_PATH
+	string "Endpoint of SIPF FILE: Request URL."
+
+module = SIPF
+module-str = SIPF
+source "subsys/logging/Kconfig.template.log_config"

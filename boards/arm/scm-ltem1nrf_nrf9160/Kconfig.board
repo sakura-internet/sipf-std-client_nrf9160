@@ -1,0 +1,14 @@
+# SCM-LTEM1NRF/SCO-M5SNRF9160 board configuration
+
+# Copyright (c) 2018-2020 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_NRF9160_SICA
+
+config BOARD_SCM_LTEM1NRF_NRF9160
+	bool "SCM-LTEM1NRF/SCO-M5SNRF9160"
+
+config BOARD_SCM_LTEM1NRF_NRF9160NS
+	bool "SCM-LTEM1NRF/SCO-M5SNRF9160 non-secure"
+
+endif # SOC_NRF9160_SICA

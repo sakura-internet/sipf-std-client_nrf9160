@@ -10,21 +10,12 @@
 
 #define CMD_REG_W "W"
 #define CMD_REG_R "R"
-#define CMD_RADIX "RADIX"
-#define CMD_REG_MW "MW"
-#define CMD_REG_MR "MR"
 
 #define CMD_TX "$TX"
 #define CMD_RX "$RX"
 #define CMD_TXRAW "$TXRAW"
-#define CMD_PUSH "$PUSH"
-#define CMD_PULL "$PULL"
-#define CMD_BCLR "$BCLR"
-#define CMD_MTX "$MTX"
-#define CMD_MRX "$MRX"
-#define CMD_MPUSH "$MPUSH"
-#define CMD_MPULL "$MPULL"
-#define CMD_EXRADIX "$EXRDIX"
+#define CMD_FPUT "$FPUT"
+#define CMD_FGET "$FGET"
 #define CMD_UNLOCK "$UNLOCK"
 #define CMD_UPDATE "$UPDATE"
 

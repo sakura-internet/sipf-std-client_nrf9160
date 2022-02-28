@@ -1,4 +1,4 @@
-box: chibiegg/sdk-nrf:1.5.1
+box: iot-fw-ci.sakuracr.jp/sdk-nrf:1.7.1
 
 build:
   steps:

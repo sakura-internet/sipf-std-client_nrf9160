@@ -1,9 +1,9 @@
 ---
 Language:        Cpp
-BasedOnStyle:  LLVM
+BasedOnStyle:    LLVM
 SortIncludes:    false
-TabWidth:        2
-IndentWidth:     2
+TabWidth:        4
+IndentWidth:     4
 AllowAllParametersOfDeclarationOnNextLine: false
 ColumnLimit:     1000
 
@@ -19,7 +19,7 @@ BreakBeforeBraces: Mozilla
 # AllowAllParametersOfDeclarationOnNextLine: true
 # AllowShortBlocksOnASingleLine: false
 # AllowShortCaseLabelsOnASingleLine: false
-# AllowShortFunctionsOnASingleLine: All
+AllowShortFunctionsOnASingleLine: None
 # AllowShortIfStatementsOnASingleLine: false
 # AllowShortLoopsOnASingleLine: false
 # AlwaysBreakAfterDefinitionReturnType: None

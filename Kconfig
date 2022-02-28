@@ -6,15 +6,17 @@
 
 menu "SIPF standard client"
 
-config SIPF_AUTH_HOST
-	string "SIPF AUTH host name."
-config SIPF_AUTH_PATH
-	string "SIPF AUTH endpoint."
+config SIPF_APP_TYPE
+	int "Application type"
 
-config SIPF_CONNECTOR_HTTP_HOST
-	string "SIPF CONNECTOR HTTP host name."
-config SIPF_CONNECTOR_PATH
-	string "SIPF CONNECTOR HTTP endpoint."
+config SIPF_APP_VER_MAJOR
+	int "Application Major version" 
+
+config SIPF_APP_VER_MINOR
+	int "Application Minor version" 
+
+config SIPF_APP_VER_RELEASE
+	int "Application Release version" 
 
 config SIPF_FOTA_HOST
 	string "Application update host name"
@@ -30,37 +32,14 @@ config SIPF_FOTA_PATH
 	  if the file is stored in http://foo.bar/update.bin the value
 	  of this configuration should be 'update.bin'
 
-config SIPF_APP_TYPE
-	int "Application type"
-
-config SIPF_APP_VER_MAJOR
-	int "Application Major version" 
-
-config SIPF_APP_VER_MINOR
-	int "Application Minor version" 
-
-config SIPF_APP_VER_RELEASE
-	int "Application Release version" 
-
-#config APPLICATION_VERSION
-#	int "Application version"
-#	default 1
-#
-#config USE_HTTPS
-#	bool
-#	prompt "Use HTTPS for download"
-
+config SIPF_FOTA_TLS
+	bool "Enable SSL for FOTA client."
 
 endmenu
 
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu
-
-module = SIPF
-module-str = SIPF
-source "subsys/logging/Kconfig.template.log_config"
-
 
 module = FOTA
 module-str = Firmware over the Air
