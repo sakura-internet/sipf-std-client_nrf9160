@@ -58,7 +58,7 @@ static void uart_broker_thread(void *dev, void *arg2, void *arg3)
 
     uart_irq_callback_set(uart, uart_broker_fifo_cb);
     uart_irq_rx_enable(uart);
-    
+
     for (;;) {
         // TX
         while (k_msgq_get(&msgq_tx, &b, K_USEC(1)) == 0) {
