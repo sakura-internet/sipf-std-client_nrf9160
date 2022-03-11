@@ -184,7 +184,7 @@ int SipfClientHttpRunRequest(const char *hostname, struct http_request *req, uin
         return -errno;
     }
 
-    ret = http_client_req(sock, req, 3 * MSEC_PER_SEC, http_res);
+    ret = http_client_req(sock, req, timeout, http_res);
     freeaddrinfo(res);
     close(sock);
     return ret;
