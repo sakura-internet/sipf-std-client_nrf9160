@@ -61,7 +61,6 @@ BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 /*********/
 
 static K_SEM_DEFINE(lte_connected, 0, 1);
-static K_SEM_DEFINE(reset_request, 0, 1);
 static const struct device *uart_dev;
 
 /* Auth info */
@@ -97,7 +96,7 @@ void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32
 {
     //リブート要求
     UartBrokerPrint("RESET_REQ_DETECT\r\n");
-    k_sem_give(&reset_request);
+    sys_reboot(SYS_REBOOT_COLD);
 }
 
 static int wake_in_init(void)
@@ -441,11 +440,18 @@ void main(void)
     // 認証モードをSIM認証にする
     uint8_t b, prev_auth_mode = 0x01;
     *REG_00_MODE = 0x01;
-    err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
-    LOG_DBG("SipfAuthRequest(): %d", err);
-    if (err < 0) {
-        // IPアドレス認証に失敗した
-        *REG_00_MODE = 0x00; // モードが切り替えられなかった
+
+    for (;;) {
+        err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
+        LOG_DBG("SipfAuthRequest(): %d", err);
+        if (err < 0) {
+            // IPアドレス認証に失敗した
+            UartBrokerPuts("Set AuthMode to `SIM Auth' faild...(Retry after 10s)");
+            *REG_00_MODE = 0x00; // モードが切り替えられなかった
+            k_sleep(K_MSEC(10000));
+            continue;
+        }
+        break;
     }
     err = SipfClientHttpSetAuthInfo(user_name, password);
     if (err < 0) {
@@ -491,12 +497,6 @@ void main(void)
 
         // GNSSイベントの処理
         gnss_poll();
-
-        if (k_sem_take(&reset_request, K_NO_WAIT) == 0) {
-            // リセット要求来た
-            lte_lc_offline();
-            sys_reboot(SYS_REBOOT_COLD);
-        }
 
         k_sleep(K_MSEC(1));
     }

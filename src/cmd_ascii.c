@@ -500,6 +500,7 @@ static int cmdFgetNgRes(uint8_t *out_buff, int out_buff_len)
  * $$FPUTコマンド
  */
 static uint8_t xmodem_block[132];
+static uint32_t sz_fput_file;
 
 static int sendChunkedData(int sock, uint8_t *chunk)
 {
@@ -577,6 +578,12 @@ static int cmdFputSendCb(int sock, struct http_request *req, void *user_data)
         return ret;
     }
     total_sent += ret;
+    LOG_DBG("content-length: %d, total_sent: %d", sz_fput_file, total_sent);
+    if (sz_fput_file > total_sent) {
+        // 送信予定のファイルサイズに満たなかった
+        (void)close(sock);
+    }
+
     return total_sent;
 }
 
@@ -671,7 +678,7 @@ static int cmdAsciiCmdFput(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff,
             goto fput_end;
         }
     }
-
+    sz_fput_file = file_size; // コールバック関数でfile_sizeを参照したい
     ret = SipfFileUpload(file_id, NULL, cmdFputSendCb, file_size);
     if (ret < 0) {
         LOG_ERR("SipfFileUpload() failed: %d", ret);
