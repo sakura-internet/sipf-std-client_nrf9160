@@ -61,7 +61,6 @@ BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 /*********/
 
 static K_SEM_DEFINE(lte_connected, 0, 1);
-static K_SEM_DEFINE(reset_request, 0, 1);
 static const struct device *uart_dev;
 
 /* Auth info */
@@ -97,7 +96,7 @@ void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32
 {
     //リブート要求
     UartBrokerPrint("RESET_REQ_DETECT\r\n");
-    k_sem_give(&reset_request);
+    sys_reboot(SYS_REBOOT_COLD);
 }
 
 static int wake_in_init(void)
@@ -491,12 +490,6 @@ void main(void)
 
         // GNSSイベントの処理
         gnss_poll();
-
-        if (k_sem_take(&reset_request, K_NO_WAIT) == 0) {
-            // リセット要求来た
-            lte_lc_offline();
-            sys_reboot(SYS_REBOOT_COLD);
-        }
 
         k_sleep(K_MSEC(1));
     }
