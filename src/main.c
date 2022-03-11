@@ -440,11 +440,18 @@ void main(void)
     // 認証モードをSIM認証にする
     uint8_t b, prev_auth_mode = 0x01;
     *REG_00_MODE = 0x01;
-    err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
-    LOG_DBG("SipfAuthRequest(): %d", err);
-    if (err < 0) {
-        // IPアドレス認証に失敗した
-        *REG_00_MODE = 0x00; // モードが切り替えられなかった
+
+    for (;;) {
+        err = SipfAuthRequest(user_name, sizeof(user_name), password, sizeof(user_name));
+        LOG_DBG("SipfAuthRequest(): %d", err);
+        if (err < 0) {
+            // IPアドレス認証に失敗した
+            UartBrokerPuts("Set AuthMode to `SIM Auth' faild...(Retry after 10s)");
+            *REG_00_MODE = 0x00; // モードが切り替えられなかった
+            k_sleep(K_MSEC(10000));
+            continue;
+        }
+        break;
     }
     err = SipfClientHttpSetAuthInfo(user_name, password);
     if (err < 0) {
