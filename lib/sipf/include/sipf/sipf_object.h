@@ -21,6 +21,7 @@
 #define OBJ_TYPE_FLOAT32 0x08
 #define OBJ_TYPE_FLOAT64 0x09
 #define OBJ_TYPE_BIN_BASE64 0x10
+#define OBJ_TYPE_BIN 0x10
 #define OBJ_TYPE_STR_UTF8 0x20
 
 typedef enum {
@@ -66,6 +67,7 @@ typedef struct
 } SipfObjectOtid;
 
 int SipfObjectParse(uint8_t *raw_buff, const uint16_t raw_len, SipfObjectObject *obj);
+int SipfObjectCreateObjUpPayload(uint8_t *raw_buff, uint16_t sz_raw_buff, SipfObjectObject *objs, uint8_t obj_qty);
 
 /* SIPF_OBJクライアント */
 int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid *otid);

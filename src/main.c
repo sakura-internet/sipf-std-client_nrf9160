@@ -55,7 +55,7 @@ LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 /** TLS **/
 #define TLS_SEC_TAG 42
 static const char cert[] = {
-#include "../cert/sipf.iot.sakura.ad.jp"
+#include "sipf/cert/sipf.iot.sakura.ad.jp"
 };
 BUILD_ASSERT(sizeof(cert) < KB(4), "Certificate too large");
 /*********/
