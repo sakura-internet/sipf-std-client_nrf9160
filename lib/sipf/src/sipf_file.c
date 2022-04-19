@@ -321,6 +321,7 @@ int SipfFileUpload(char *file_id, uint8_t *buff, http_payload_cb_t cb, int sz_pa
  */
 static K_SEM_DEFINE(sem_dl_finish, 0, 1);
 static sipfFileDownload_cb_t dl_cb = NULL;
+static int dl_cb_err = 0;
 int download_client_callback(const struct download_client_evt *event)
 {
     int ret;
@@ -335,6 +336,7 @@ int download_client_callback(const struct download_client_evt *event)
         if (dl_cb) {
             ret = dl_cb((uint8_t *)event->fragment.buf, event->fragment.len);
             if (ret < 0) {
+                dl_cb_err = ret;
                 k_sem_give(&sem_dl_finish);
                 return ret;
             }
@@ -342,10 +344,12 @@ int download_client_callback(const struct download_client_evt *event)
         break;
     case DOWNLOAD_CLIENT_EVT_DONE:
         LOG_INF("DOWNLOAD_CLIENT_EVT_DONE");
+        dl_cb_err = 0;
         k_sem_give(&sem_dl_finish);
         break;
     case DOWNLOAD_CLIENT_EVT_ERROR:
         LOG_ERR("DOWNLOAD_CLIENT_EVT_ERR");
+        dl_cb_err = -1;
         k_sem_give(&sem_dl_finish);
         return -1;
     default:
@@ -432,7 +436,14 @@ int SipfFileDownload(const char *file_id, uint8_t *buff, size_t sz_download, sip
         return ret;
     }
 
-    LOG_DBG("file_size: %d", dc.file_size);
+    // コールバック関数のエラーチェック
+    if (dl_cb_err == 0) {
+        LOG_DBG("file_size: %d", dc.file_size);
+        ret = dc.file_size;
+    } else {
+        LOG_ERR("Download callback error: %d", dl_cb_err);
+        ret = dl_cb_err;
+    }
     download_client_disconnect(&dc);
-    return dc.file_size;
+    return ret;
 }
