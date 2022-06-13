@@ -424,7 +424,8 @@ static int cmdAsciiCmdRx(uint8_t *in_buff, uint16_t in_len, uint8_t *out_buff, u
     uint8_t err;
     SipfObjectOtid otid;
     uint8_t remains, objqty;
-    uint8_t *p_snd_datetime, *p_rcv_datetime, *p_objs[16];
+    uint8_t *p_snd_datetime, *p_rcv_datetime;
+    static uint8_t *p_objs[OBJ_MAX_CNT];
 
     err = SipfObjClientObjDown(&otid, &remains, &objqty, p_objs, &p_snd_datetime, &p_rcv_datetime);
 

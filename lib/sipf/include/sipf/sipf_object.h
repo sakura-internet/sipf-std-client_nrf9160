@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define OBJ_MAX_CNT (255)
+
 #define OBJ_TYPE_UINT8 0x00
 #define OBJ_TYPE_INT8 0x01
 #define OBJ_TYPE_UINT16 0x02

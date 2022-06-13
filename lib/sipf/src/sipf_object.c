@@ -336,7 +336,7 @@ int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty
         //オブジェクトの先頭ポインタをリストに追加
         p_objs[(*objqty)++] = &sipf_obj_payload[idx];
         //オブジェクト数の上限に達してたら中断
-        if (*objqty >= 16) {
+        if (*objqty >= OBJ_MAX_CNT) {
             break;
         }
         //インデックスを次のオブジェクトの先頭に設定
