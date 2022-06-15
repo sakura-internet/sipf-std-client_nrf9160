@@ -92,9 +92,16 @@ int SipfObjectCreateObjUpPayload(uint8_t *raw_buff, uint16_t sz_raw_buff, SipfOb
  */
 static void http_response_cb(struct http_response *resp, enum http_final_call final_data, void *user_data)
 {
+    struct http_response *ur = (struct http_response*)user_data;
+    
     if (resp->data_len > 0) {
-        LOG_INF("HTTP response has come");
-        memcpy(user_data, resp, sizeof(struct http_response));
+        if (ur->http_status_code == 0) {
+            memcpy(user_data, resp, sizeof(struct http_response));
+        } else {
+            ur->data_len += resp->data_len;
+        }
+        LOG_INF("HTTP response has come(content-length: %d, data_len: %d)", resp->content_length, resp->data_len);
+        
     }
 }
 
@@ -107,6 +114,8 @@ static int run_connector_http_request(const uint8_t *payload, const int payload_
     struct http_request req;
     memset(&req, 0, sizeof(req));
     const char *headers[] = {"Connection: Close\r\n", "Content-Type: application/octet-stream\r\n", req_auth_header, NULL};
+
+    memset(httpc_res_buff, 0, sizeof(httpc_res_buff));
 
     req.method = HTTP_POST;
     req.url = CONFIG_SIPF_CONNECTOR_PATH;
@@ -272,6 +281,7 @@ int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty
 
     /* リクエスト送信 */
     static struct http_response http_res;
+    memset(&http_res, 0, sizeof(struct http_response));
     ret = run_connector_http_request(httpc_req_buff, 13, &http_res);
 
     LOG_INF("run_connector_http_request(): %d", ret);
@@ -279,12 +289,8 @@ int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty
         return ret;
     }
 
-    LOG_INF("Response status %s", http_res.http_status);
-    LOG_INF("content-length: %d", http_res.content_length);
-    for (int i = 0; i < http_res.content_length; i++) {
-        LOG_DBG("0x%02x ", http_res.body_start[i]);
-    }
-
+    LOG_INF("Response status %s(%d)", http_res.http_status, http_res.http_status_code);
+    LOG_INF("data_len: %d content-length: %d", http_res.data_len, http_res.content_length);
     /* レスポンスを処理 */
     uint8_t *sipf_obj_head = &http_res.body_start[0];
     uint8_t *sipf_obj_payload = &http_res.body_start[12];
@@ -336,7 +342,7 @@ int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty
         //オブジェクトの先頭ポインタをリストに追加
         p_objs[(*objqty)++] = &sipf_obj_payload[idx];
         //オブジェクト数の上限に達してたら中断
-        if (*objqty >= 16) {
+        if (*objqty >= OBJ_MAX_CNT) {
             break;
         }
         //インデックスを次のオブジェクトの先頭に設定

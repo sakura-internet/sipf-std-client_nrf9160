@@ -15,7 +15,7 @@
 #define UART_LABEL DT_LABEL(DT_NODELABEL(uart0))
 
 #define UART_TX_BUF_SZ (256)
-#define UART_RX_BUF_SZ (256)
+#define UART_RX_BUF_SZ (1024)
 
 int UartBrokerInit(const struct device *uart);
 int UartBrokerTerm(void);

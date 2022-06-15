@@ -13,7 +13,7 @@
 #define HTTPS_PORT 443
 #define TLS_SEC_TAG 42
 
-#define BUFF_SZ (1024)
+#define BUFF_SZ (1500)
 
 extern uint8_t httpc_req_buff[BUFF_SZ];
 extern uint8_t httpc_res_buff[BUFF_SZ];
