@@ -10,7 +10,6 @@ build:
         name: build binalies
         code: |
           bash wercker.sh
-          cp -Rv dist/bin/ "${WERCKER_OUTPUT_DIR}"
           cp -v  dist/sipf-std-client_nrf9160.tar.gz "${WERCKER_OUTPUT_DIR}"
 
   after-steps:
