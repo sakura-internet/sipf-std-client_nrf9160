@@ -446,7 +446,7 @@ void main(void)
         LOG_DBG("SipfAuthRequest(): %d", err);
         if (err < 0) {
             // IPアドレス認証に失敗した
-            UartBrokerPuts("Set AuthMode to `SIM Auth' faild...(Retry after 10s)");
+            UartBrokerPuts("Set AuthMode to `SIM Auth' faild...(Retry after 10s)\r\n");
             *REG_00_MODE = 0x00; // モードが切り替えられなかった
             k_sleep(K_MSEC(10000));
             continue;
