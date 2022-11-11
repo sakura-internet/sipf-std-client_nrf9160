@@ -5,7 +5,7 @@ BOARDS="scm-ltem1nrf_nrf9160ns nrf9160dk_nrf9160_ns thingy91_nrf9160_ns"
 if [ "$DEBUG" = "1" ]; then
   TARGETS="develop"
 else
-  TARGETS="production" 
+  TARGETS="production_disable_tls production" 
   #TARGETS="production staging develop"
 fi
 
