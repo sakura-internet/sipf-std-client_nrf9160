@@ -914,16 +914,17 @@ static int cmdAsciiCmdGnssStatus(uint8_t *in_buff, uint16_t in_len, uint8_t *out
         return cmdCreateResIllParam(out_buff, out_buff_len);
     }
 
-    nrf_gnss_data_frame_t gps_data;
-    gnss_get_data(&gps_data);
+    struct nrf_modem_gnss_pvt_data_frame pvt;
+    gnss_get_data(&pvt);
 
     uint8_t *buff = out_buff;
 
-    buff += sprintf(buff, "Fix valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_FIX_VALID_BIT) == NRF_GNSS_PVT_FLAG_FIX_VALID_BIT ? "true" : "false");
-    buff += sprintf(buff, "Leap second valid: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID) == NRF_GNSS_PVT_FLAG_LEAP_SECOND_VALID ? "true" : "false");
-    buff += sprintf(buff, "Sleep between PVT: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) == NRF_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT ? "true" : "false");
-    buff += sprintf(buff, "Deadline missed: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_DEADLINE_MISSED) == NRF_GNSS_PVT_FLAG_DEADLINE_MISSED ? "true" : "false");
-    buff += sprintf(buff, "Insuf. time window: %s\n", (gps_data.pvt.flags & NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) == NRF_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME ? "true" : "false");
+    buff += sprintf(buff, "Fix valid: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_FIX_VALID) != 0 ? "true" : "false");
+    buff += sprintf(buff, "Leap second valid: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_LEAP_SECOND_VALID) != 0 ? "true" : "false");
+    buff += sprintf(buff, "Sleep between PVT: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_SLEEP_BETWEEN_PVT) != 0 ? "true" : "false");
+    buff += sprintf(buff, "Deadline missed: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_DEADLINE_MISSED) != 0 ? "true" : "false");
+    buff += sprintf(buff, "Insuf. time window: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) != 0 ? "true" : "false");
+    buff += sprintf(buff, "Velocity estimate valid: %s\n", (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_VELOCITY_VALID) != 0 ? "true" : "false");
 
     buff += sprintf(buff, "OK\n");
     return (int)(buff - out_buff);
@@ -941,8 +942,8 @@ static int cmdAsciiCmdGnssLocation(uint8_t *in_buff, uint16_t in_len, uint8_t *o
     }
 
     bool got_fix;
-    nrf_gnss_data_frame_t gps_data;
-    got_fix = gnss_get_data(&gps_data);
+    struct nrf_modem_gnss_pvt_data_frame pvt;
+    got_fix = gnss_get_data(&pvt);
 
     uint8_t *buff = out_buff;
 
@@ -953,7 +954,7 @@ static int cmdAsciiCmdGnssLocation(uint8_t *in_buff, uint16_t in_len, uint8_t *o
         // FIXED
         buff += sprintf(buff, "A,");
     }
-    buff += sprintf(buff, "%.6f,%.6f,%f,%f,%f,%04u-%02u-%02uT%02u:%02u:%02uZ", gps_data.pvt.longitude, gps_data.pvt.latitude, gps_data.pvt.altitude, gps_data.pvt.speed, gps_data.pvt.heading, gps_data.pvt.datetime.year, gps_data.pvt.datetime.month, gps_data.pvt.datetime.day, gps_data.pvt.datetime.hour, gps_data.pvt.datetime.minute, gps_data.pvt.datetime.seconds);
+    buff += sprintf(buff, "%.6f,%.6f,%f,%f,%f,%04u-%02u-%02uT%02u:%02u:%02uZ", pvt.longitude, pvt.latitude, pvt.altitude, pvt.speed, pvt.heading, pvt.datetime.year, pvt.datetime.month, pvt.datetime.day, pvt.datetime.hour, pvt.datetime.minute, pvt.datetime.seconds);
     buff += sprintf(buff, "\r\nOK\r\n");
     return (int)(buff - out_buff);
 }

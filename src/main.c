@@ -20,7 +20,7 @@
 #include <zephyr/logging/log.h>
 
 #include <zephyr/drivers/gpio.h>
-#include <power/reboot.h>
+#include <zephyr/sys/reboot.h>
 
 #include "cmd.h"
 #include "fota/fota_http.h"
@@ -403,7 +403,7 @@ void main(void)
     RegistersReset();
 
     // UartBrokerの初期化(以降、Debug系の出力も可能)
-    uart_dev = device_get_binding(UART_LABEL);
+    uart_dev =  DEVICE_DT_GET(DT_NODELABEL(uart0));
     UartBrokerInit(uart_dev);
     UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
 #ifdef CONFIG_LTE_LOCK_PLMN
@@ -494,9 +494,6 @@ void main(void)
             }
         }
         prev_auth_mode = *REG_00_MODE;
-
-        // GNSSイベントの処理
-        gnss_poll();
 
         k_sleep(K_MSEC(1));
     }

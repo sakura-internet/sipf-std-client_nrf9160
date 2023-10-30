@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <power/reboot.h>
+#include <zephyr/sys/reboot.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -90,7 +90,7 @@ int FotaHttpRun(char *file_name_suffix)
     UartBrokerPuts("DOWNLOAD FILE: ");
     UartBrokerPuts(file_name_suffix);
     UartBrokerPuts("\r\n");
-    ret = fota_download_start(host, path, sec_tag, NULL, 1024);
+    ret = fota_download_start(host, path, sec_tag, 0, 1024);
     if (ret != 0) {
         LOG_ERR("fota_download_start() failed: %d", ret);
         return ret;
