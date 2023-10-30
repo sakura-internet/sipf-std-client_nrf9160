@@ -8,11 +8,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <zephyr.h>
-#include <modem/at_cmd.h>
+#include <zephyr/kernel.h>
+#include <nrf_modem_at.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/lte_lc.h>
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
 #include "gnss/gnss.h"
 

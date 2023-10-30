@@ -6,20 +6,20 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
-#include <modem/at_cmd.h>
-#include <modem/at_notif.h>
+#include <nrf_modem_at.h>
+#include <modem/at_monitor.h>
 #include <modem/lte_lc.h>
 #include <modem/modem_info.h>
 #include <modem/modem_key_mgmt.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/pdn.h>
-#include <net/socket.h>
-#include <net/tls_credentials.h>
-#include <logging/log.h>
+#include <zephyr/net/socket.h>
+#include <zephyr/net/tls_credentials.h>
+#include <zephyr/logging/log.h>
 
-#include <drivers/gpio.h>
+#include <zephyr/drivers/gpio.h>
 #include <power/reboot.h>
 
 #include "cmd.h"

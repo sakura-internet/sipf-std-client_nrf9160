@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 #include <power/reboot.h>
-#include <zephyr.h>
-#include <logging/log.h>
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
 
 #include "fota/fota_http.h"
 #include "sipf/sipf_client_http.h"

@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <drivers/uart.h>
+#include <zephyr/drivers/uart.h>
 
 #define UART_LABEL DT_LABEL(DT_NODELABEL(uart0))
 

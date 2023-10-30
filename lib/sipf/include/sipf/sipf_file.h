@@ -8,9 +8,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <net/socket.h>
+#include <zephyr/net/socket.h>
 #include <net/download_client.h>
-#include <net/http_client.h>
+#include <zephyr/net/http/client.h>
 
 int SipfFileRequestDownloadURL(const char *file_id, char *url, int sz_url);
 int SipfFileRequestUploadURL(const char *file_id, char *url, int sz_url);

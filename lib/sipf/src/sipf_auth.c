@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(sipf);
 
@@ -66,7 +66,7 @@ int SipfAuthRequest(char *user_name, uint8_t sz_user_name, char *password, uint8
     LOG_INF("content-length: %d", http_res.content_length);
     // FIXME: CONFIG_SIPF_LOG_LEVEL をつかっていい感じに抑制する
     for (int i = 0; i < http_res.content_length; i++) {
-        LOG_DBG("0x%02x ", http_res.body_start[i]);
+        LOG_DBG("0x%02x ", http_res.body_frag_start[i]);
     }
     // FIXME: ここまで
 
@@ -77,13 +77,13 @@ int SipfAuthRequest(char *user_name, uint8_t sz_user_name, char *password, uint8
 
     // レスポンスのフォーマットは USERNAME\nPASSWORD\n
     // FIXME: 例外処理もしっかりやる
-    char *u = (char *)&http_res.body_start[0];
+    char *u = (char *)&http_res.body_frag_start[0];
     char *p = NULL;
     for (int i = 0; i < http_res.content_length; i++) {
-        if (http_res.body_start[i] == '\n') {
-            http_res.body_start[i] = 0;
+        if (http_res.body_frag_start[i] == '\n') {
+            http_res.body_frag_start[i] = 0;
             if (p == NULL) {
-                p = (char *)&(http_res.body_start[i + 1]);
+                p = (char *)&(http_res.body_frag_start[i + 1]);
             }
         }
     }

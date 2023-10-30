@@ -60,7 +60,7 @@ typedef struct
 typedef struct
 {
     uint8_t obj_qty;
-    SipfObjectObject obj;
+    SipfObjectObject *objs;
 } SipfObjectUp;
 
 typedef struct

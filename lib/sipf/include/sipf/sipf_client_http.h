@@ -6,7 +6,7 @@
 #ifndef SIPF_CLIENT_HTTP_H
 #define SIPF_CLIENT_HTTP_H
 
-#include <net/http_client.h>
+#include <zephyr/net/http/client.h>
 #include "sipf/sipf_object.h"
 
 #define HTTP_PORT 80

@@ -9,7 +9,7 @@
 #include "xmodem.h"
 #include "uart_broker.h"
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(sipf);
 
 // static uint8_t xmodem_block[132];

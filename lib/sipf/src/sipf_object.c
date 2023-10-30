@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(sipf);
 
@@ -177,11 +177,11 @@ int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid
 
     LOG_DBG("Response status %s", http_res.http_status);
     LOG_DBG("content-length: %d", http_res.content_length);
-    LOG_HEXDUMP_DBG(http_res.body_start, http_res.content_length, "response:");
+    LOG_HEXDUMP_DBG(http_res.body_frag_start, http_res.body_frag_len, "response:");
 
     // OBJID_NOTIFICATIONをパース
-    uint8_t *sipf_obj_head = &http_res.body_start[0];
-    uint8_t *sipf_obj_payload = &http_res.body_start[12];
+    uint8_t *sipf_obj_head = &http_res.body_frag_start[0];
+    uint8_t *sipf_obj_payload = &http_res.body_frag_start[12];
     if (strcmp(http_res.http_status, "OK") != 0) {
         LOG_WRN("Invalid HTTP stauts %s", http_res.http_status);
         if (strcmp(http_res.http_status, "Unauthorized") == 0) {
@@ -216,27 +216,12 @@ int SipfObjClientObjUpRaw(uint8_t *payload_buffer, uint16_t size, SipfObjectOtid
 
 int SipfObjClientObjUp(const SipfObjectUp *simp_obj_up, SipfObjectOtid *otid)
 {
-    if (simp_obj_up->obj.value == NULL) {
+    if (simp_obj_up->objs == NULL){
         return -1;
     }
 
-    uint16_t size = 3 + simp_obj_up->obj.value_len;
-    uint8_t payload[32];
-    if (size > sizeof(payload)) {
-        LOG_ERR("obj.value is too big %d", size);
-        return -1;
-    }
-
-    // OBJ
-    //  OBJ_TYPEID
-    payload[0] = simp_obj_up->obj.obj_type;
-    //  OBJ_TAGID
-    payload[1] = simp_obj_up->obj.obj_tagid;
-    //  OBJ_LENGTH
-    payload[2] = simp_obj_up->obj.value_len;
-    //  OBJ_VALUE
-    memcpy(&payload[3], simp_obj_up->obj.value, simp_obj_up->obj.value_len);
-
+    uint8_t payload[512];
+    int size = SipfObjectCreateObjUpPayload(payload, sizeof(payload), simp_obj_up->objs, simp_obj_up->obj_qty);
     return SipfObjClientObjUpRaw(payload, size, otid);
 }
 
@@ -291,9 +276,10 @@ int SipfObjClientObjDown(SipfObjectOtid *otid, uint8_t *remains, uint8_t *objqty
 
     LOG_INF("Response status %s(%d)", http_res.http_status, http_res.http_status_code);
     LOG_INF("data_len: %d content-length: %d", http_res.data_len, http_res.content_length);
+    LOG_HEXDUMP_DBG(http_res.body_frag_start, http_res.body_frag_len, "response:");
     /* レスポンスを処理 */
-    uint8_t *sipf_obj_head = &http_res.body_start[0];
-    uint8_t *sipf_obj_payload = &http_res.body_start[12];
+    uint8_t *sipf_obj_head = &http_res.body_frag_start[0];
+    uint8_t *sipf_obj_payload = &http_res.body_frag_start[12];
     if (strcmp(http_res.http_status, "OK") != 0) {
         if (strcmp(http_res.http_status, "Unauthorized") == 0) {
             return -401;
