@@ -1,6 +1,6 @@
 #!/bin/bash -xe
 
-TARGET_BOARD=scm-ltem1nrf_nrf9160ns
+TARGET_BOARD=scm-ltem1nrf_nrf9160_ns
 TARGET_ENV=develop
 
 if [ -n "$1" ]; then

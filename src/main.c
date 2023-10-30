@@ -89,7 +89,7 @@ int at_comms_init(void)
     return 0;
 }
 
-#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160NS
+#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160_NS
 static struct gpio_callback gpio_cb;
 
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
