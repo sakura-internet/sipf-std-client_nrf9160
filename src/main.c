@@ -37,19 +37,11 @@ LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 /** peripheral **/
 #define LED_HEARTBEAT_MS (500)
 
-#define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
-#define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
-#define LED1_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led1), gpios))
+static const struct gpio_dt_spec LED1 = GPIO_DT_SPEC_GET(DT_NODELABEL(led1), gpios);
+static const struct gpio_dt_spec LED2 = GPIO_DT_SPEC_GET(DT_NODELABEL(led2), gpios);
+static const struct gpio_dt_spec LED3 = GPIO_DT_SPEC_GET(DT_NODELABEL(led3), gpios);
+static const struct gpio_dt_spec WAKE_IN = GPIO_DT_SPEC_GET(DT_NODELABEL(button0), gpios);
 
-#define LED2_PIN (DT_GPIO_PIN(DT_ALIAS(led2), gpios))
-#define LED2_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led2), gpios))
-
-#define LED3_PIN (DT_GPIO_PIN(DT_ALIAS(led3), gpios))
-#define LED3_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led3), gpios))
-
-#define WAKE_IN_PORT DT_GPIO_LABEL(DT_ALIAS(sw2), gpios)
-#define WAKE_IN_PIN (DT_GPIO_PIN(DT_ALIAS(sw2), gpios))
-#define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
 /**********/
 
 /** TLS **/
@@ -101,19 +93,13 @@ void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32
 
 static int wake_in_init(void)
 {
-    const struct device *dev;
-    dev = device_get_binding(WAKE_IN_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
     int ret;
-    ret = gpio_pin_configure(dev, WAKE_IN_PIN, WAKE_IN_FLAGS);
+    ret = gpio_pin_configure_dt(&WAKE_IN, GPIO_INPUT);
     if (ret == 0) {
-        gpio_init_callback(&gpio_cb, wake_in_assert, BIT(WAKE_IN_PIN));
-        ret = gpio_add_callback(dev, &gpio_cb);
+        gpio_init_callback(&gpio_cb, wake_in_assert, BIT(WAKE_IN.pin));
+        ret = gpio_add_callback(WAKE_IN.port, &gpio_cb);
         if (ret == 0) {
-            gpio_pin_interrupt_configure(dev, WAKE_IN_PIN, GPIO_INT_EDGE_TO_ACTIVE);
+            gpio_pin_interrupt_configure_dt(&WAKE_IN, GPIO_INT_EDGE_TO_ACTIVE);
         }
     }
 
@@ -129,67 +115,82 @@ static int wake_in_init(void)
 /** LED **/
 static int led_init(void)
 {
-    const struct device *dev;
-
-    dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
     int ret;
+
     /* Initialize LED1  */
-    ret = gpio_pin_configure(dev, LED1_PIN, LED1_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED1_PIN, ret);
-    ret = gpio_pin_set(dev, LED1_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED1_PIN, ret);
+	if (!gpio_is_ready_dt(&LED1)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED1, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 1, ret);
+    ret = gpio_pin_set_dt(&LED1, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 1, ret);
 
     /* Initialize LED2  */
-    ret = gpio_pin_configure(dev, LED2_PIN, LED2_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED2_PIN, ret);
-    ret = gpio_pin_set(dev, LED2_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED2_PIN, ret);
+	if (!gpio_is_ready_dt(&LED2)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED2, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 2, ret);
+    ret = gpio_pin_set_dt(&LED2, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 2, ret);
 
     /* Initialize LED3  */
-    ret = gpio_pin_configure(dev, LED3_PIN, LED3_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED3_PIN, ret);
-    ret = gpio_pin_set(dev, LED3_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED3_PIN, ret);
+	if (!gpio_is_ready_dt(&LED3)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED3, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 3, ret);
+    ret = gpio_pin_set_dt(&LED3, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 3, ret);
+
     return 0;
 }
 
 static int led_on(gpio_pin_t pin)
 {
-    const struct device *dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
+    switch(pin) {
+        case 1:
+            gpio_pin_set_dt(&LED1, 0x01);
+            break;
+        case 2:
+            gpio_pin_set_dt(&LED2, 0x01);
+            break;
+        case 3:
+            gpio_pin_set_dt(&LED3, 0x01);
+            break;
+        default:
+            LOG_ERR("Invald LED %d", pin);
+            return 1;
+            break;
     }
-    gpio_pin_set(dev, pin, 1);
     return 0;
 }
 
 static int led_off(gpio_pin_t pin)
 {
-    const struct device *dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
+    switch(pin) {
+        case 1:
+            gpio_pin_set_dt(&LED1, 0x00);
+            break;
+        case 2:
+            gpio_pin_set_dt(&LED2, 0x00);
+            break;
+        case 3:
+            gpio_pin_set_dt(&LED3, 0x00);
+            break;
+        break:
+            LOG_ERR("Invald LED %d", pin);
+            return 1;
+            break;
     }
-    gpio_pin_set(dev, pin, 0);
     return 0;
 }
 
 static int led1_toggle(void)
 {
-    const struct device *dev;
     static int val = 0;
-
-    dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
-    gpio_pin_set(dev, LED1_PIN, val);
+    gpio_pin_set_dt(&LED1, val);
     val = (val == 0) ? 1 : 0;
     return 0;
 }
@@ -417,7 +418,7 @@ void main(void)
 #endif
     // LEDの初期化
     led_init();
-    led_on(LED2_PIN);
+    led_on(2);
 
     // WAKE_INの初期化
     wake_in_init();
@@ -425,7 +426,7 @@ void main(void)
     //モデムの初期化&LTE接続
     err = init_modem_and_lte();
     if (err) {
-        led_off(LED2_PIN);
+        led_off(2);
         return;
     }
 
@@ -460,7 +461,7 @@ void main(void)
     }
 
     UartBrokerPuts("+++ Ready +++\r\n");
-    led_on(LED3_PIN);
+    led_on(3);
     ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
     for (;;) {
         while (UartBrokerGetByte(&b) == 0) {
