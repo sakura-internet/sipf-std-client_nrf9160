@@ -64,20 +64,6 @@ static char password[SZ_PASSWORD];
 /* Initialize AT communications */
 int at_comms_init(void)
 {
-    int err;
-
-    err = at_cmd_init();
-    if (err) {
-        LOG_ERR("Failed to initialize AT commands, err %d", err);
-        return err;
-    }
-
-    err = at_notif_init();
-    if (err) {
-        LOG_ERR("Failed to initialize AT notifications, err %d", err);
-        return err;
-    }
-
     return 0;
 }
 
@@ -179,7 +165,7 @@ static int led_off(gpio_pin_t pin)
         case 3:
             gpio_pin_set_dt(&LED3, 0x00);
             break;
-        break:
+        break;
             LOG_ERR("Invald LED %d", pin);
             return 1;
             break;
@@ -268,7 +254,7 @@ static int init_modem_and_lte(void)
     static char at_ret[128];
     int err = 0;
 
-    err = nrf_modem_lib_init(NORMAL_MODE);
+    err = nrf_modem_lib_init();
     if (err) {
         LOG_ERR("Failed to initialize modem library!");
         return err;
@@ -295,14 +281,14 @@ static int init_modem_and_lte(void)
     }
     LOG_DBG("Setting system mode OK");
 
-    err = at_cmd_write("AT\%XMAGPIO=1,0,0,1,1,1574,1577", NULL, 0, NULL);
+    err = nrf_modem_at_printf("AT%%XMAGPIO=1,0,0,1,1,1574,1577");
     if (err != 0) {
         LOG_ERR("Failed to set XMAGPIO, err %d", err);
         return err;
     }
     LOG_DBG("Configure MAGPIO OK");
 
-    err = at_cmd_write("AT\%XCOEX0=1,1,1565,1586", NULL, 0, NULL);
+    err = nrf_modem_at_printf("AT%%XCOEX0=1,1,1565,1586");
     if (err != 0) {
         LOG_ERR("Failed to set XCOEX0, err %d", err);
         return err;
@@ -311,11 +297,6 @@ static int init_modem_and_lte(void)
 
     /* PDN */
     uint8_t cid;
-    err = pdn_init();
-    if (err != 0) {
-        LOG_ERR("Failed to pdn_init()");
-        return err;
-    }
     err = pdn_ctx_create(&cid, NULL);
     if (err != 0) {
         LOG_ERR("Failed to pdn_ctx_create(), err %d", err);
@@ -330,7 +311,6 @@ static int init_modem_and_lte(void)
     LOG_DBG("Setting APN OK");
 
     /* CONNECT */
-    enum at_cmd_state at_state;
     for (int i = 0; i < REGISTER_TRY; i++) {
         LOG_DBG("Initialize LTE");
         err = lte_lc_init();
@@ -367,20 +347,19 @@ static int init_modem_and_lte(void)
             }
 
             // ICCIDの取得
-            err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
+
+            err = nrf_modem_at_scanf("AT%XICCID", "%%XICCID:  %120[ ,-\"a-zA-Z0-9]", at_ret);
             if (err) {
                 LOG_ERR("Failed to get ICCID, err %d", err);
                 return err;
             }
-            if (at_state == AT_CMD_OK) {
-                char *iccid_top = &at_ret[9]; // ICCIDの先頭
-                for (int i = 0; i < 20; i++) {
-                    if (iccid_top[i] == 'F') {
-                        iccid_top[i] = 0x00;
-                    }
+            char *iccid_top = &at_ret[9]; // ICCIDの先頭
+            for (int i = 0; i < 20; i++) {
+                if (iccid_top[i] == 'F') {
+                    iccid_top[i] = 0x00;
                 }
-                UartBrokerPrint("ICCID: %s\r\n", iccid_top);
             }
+            UartBrokerPrint("ICCID: %s\r\n", iccid_top);
             return 0;
         } else {
             //
@@ -393,7 +372,7 @@ static int init_modem_and_lte(void)
 }
 /**********/
 
-void main(void)
+int main(void)
 {
     int err;
 
@@ -426,7 +405,7 @@ void main(void)
     err = init_modem_and_lte();
     if (err) {
         led_off(2);
-        return;
+        return -1;
     }
 
     // GNSSの初期化
@@ -434,8 +413,10 @@ void main(void)
         UartBrokerPuts("Failed to initialize GNSS peripheral\r\n");
     }
 
+#if CONFIG_DFU_TARGET_MCUBOOT
     // LTEつながるならOKなFWよね
     boot_write_img_confirmed();
+#endif
 
     // 認証モードをSIM認証にする
     uint8_t b, prev_auth_mode = 0x01;
