@@ -204,9 +204,8 @@ static int cert_provision(void)
 {
     int err;
     bool exists;
-    uint8_t unused;
 
-    err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists, &unused);
+    err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists);
     if (err) {
         LOG_ERR("Failed to check for certificates err %d", err);
         return err;
