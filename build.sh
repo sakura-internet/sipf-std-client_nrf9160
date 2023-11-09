@@ -1,7 +1,7 @@
 #!/bin/bash -xe
 
 TARGET_BOARD=scm-ltem1nrf_nrf9160_ns
-TARGET_ENV=develop
+TARGET_ENV=production
 
 if [ -n "$1" ]; then
     TARGET_ENV="$1"

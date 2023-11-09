@@ -40,8 +40,9 @@ LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 static const struct gpio_dt_spec LED1 = GPIO_DT_SPEC_GET(DT_NODELABEL(led1), gpios);
 static const struct gpio_dt_spec LED2 = GPIO_DT_SPEC_GET(DT_NODELABEL(led2), gpios);
 static const struct gpio_dt_spec LED3 = GPIO_DT_SPEC_GET(DT_NODELABEL(led3), gpios);
+#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160_NS
 static const struct gpio_dt_spec WAKE_IN = GPIO_DT_SPEC_GET(DT_NODELABEL(button0), gpios);
-
+#endif
 /**********/
 
 /** TLS **/
@@ -251,7 +252,6 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 
 static int init_modem_and_lte(void)
 {
-    static char at_ret[128];
     int err = 0;
 
     err = nrf_modem_lib_init();
@@ -347,19 +347,19 @@ static int init_modem_and_lte(void)
             }
 
             // ICCIDの取得
+            struct modem_param_info mpi;
 
-            err = nrf_modem_at_scanf("AT%XICCID", "%%XICCID:  %120[ ,-\"a-zA-Z0-9]", at_ret);
-            if (err) {
-                LOG_ERR("Failed to get ICCID, err %d", err);
-                return err;
-            }
-            char *iccid_top = &at_ret[9]; // ICCIDの先頭
-            for (int i = 0; i < 20; i++) {
-                if (iccid_top[i] == 'F') {
-                    iccid_top[i] = 0x00;
+            err = modem_info_init();
+            if (err == 0) {
+                if (modem_info_params_init(&mpi) == 0) {
+                    if (modem_info_params_get(&mpi) == 0) {
+                        UartBrokerPrint("ICCID: %s\r\n", mpi.sim.iccid.value_string);
+                    }
                 }
+            } else {
+                LOG_ERR("modem_info_init() failed, err: %d", err);
             }
-            UartBrokerPrint("ICCID: %s\r\n", iccid_top);
+
             return 0;
         } else {
             //
@@ -404,6 +404,7 @@ int main(void)
     //モデムの初期化&LTE接続
     err = init_modem_and_lte();
     if (err) {
+        LOG_ERR("init_modem_and_lte() failed... err: %d", err);
         led_off(2);
         return -1;
     }
@@ -416,6 +417,8 @@ int main(void)
 #if CONFIG_DFU_TARGET_MCUBOOT
     // LTEつながるならOKなFWよね
     boot_write_img_confirmed();
+#else
+    #error "CONFIG_DFU_TARGET_MCUBOOT is disabled..."
 #endif
 
     // 認証モードをSIM認証にする
