@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BOARDS="scm-ltem1nrf_nrf9160ns nrf9160dk_nrf9160_ns thingy91_nrf9160_ns"
+BOARDS="scm-ltem1nrf_nrf9160_ns nrf9160dk_nrf9160_ns thingy91_nrf9160_ns"
 
 if [ "$DEBUG" = "1" ]; then
   TARGETS="develop"

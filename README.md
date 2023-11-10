@@ -5,14 +5,14 @@
 ### About
 
 This software is `Standard client firmware' for Sakura's MONOPLATFORM.  
-Target divice are SCO-M5SNRF9160 and SCM-LTEM1NRF.
+Target divice are SCM-LTEM1NRF.
 
 ### Install nRF Connect SDK
 
 See [nRF Connect SDK Getting started](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/getting_started.html).  
 If you want to install the development environment quickly, see [Installing the nRF Connect SDK through nRF Connect for Desktop](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/gs_assistant.html#gs-assistant).
 
-Using nRF Connect SDK v1.7.1 .
+Using nRF Connect SDK v2.4.2 .
 
 ### Clone this repository
 
@@ -37,9 +37,9 @@ Use `build.sh` for build.
 
 target
 
-- develop (default)
+- production (default)
 - staging
-- production
+- develop
 - local
 
 board
@@ -48,12 +48,12 @@ board
 - nrf9160dk_nrf9160_ns
 - thingy91_nrf9160_ns
 
-For develop / SCM-LTEM1NRF and SCO-M5SNRF9160
+For production / SCM-LTEM1NRF
 ```
 ./build.sh
 ```
 
-For production / SCM-LTEM1NRF and SCO-M5SNRF9160
+For develop / SCM-LTEM1NRF
 ```
 ./build.sh production
 ```

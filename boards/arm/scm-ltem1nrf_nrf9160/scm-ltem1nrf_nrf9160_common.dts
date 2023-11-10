@@ -41,22 +41,11 @@
 			gpios = <&gpio0 21 (GPIO_PULL_DOWN | GPIO_ACTIVE_HIGH)>;
 			label = "WAKE_IN";
 		};
-/*
-		button1: button_1 {
-			gpios = <&gpio0 26 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-			label = "GPIO 26";
-		};
-*/
+
 		button2: button_2 {
 			gpios = <&gpio0 27 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "GPIO 27";
 		};
-/*
-		button3: button_3 {
-			gpios = <&gpio0 28 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
-			label = "GPIO 28";
-		};
-*/
 	};
 
 	/* These aliases are provided for compatibility with samples */
@@ -66,9 +55,7 @@
 		led2 = &led2;
 		led3 = &led3;
 		sw0 = &button2;
-/*		sw1 = &button3;*/
 		sw2 = &button0;
-/*		sw3 = &button1;*/
 	};
 };
 

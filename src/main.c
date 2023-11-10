@@ -37,11 +37,11 @@ LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 /** peripheral **/
 #define LED_HEARTBEAT_MS (500)
 
-static const struct gpio_dt_spec LED1 = GPIO_DT_SPEC_GET(DT_NODELABEL(led1), gpios);
-static const struct gpio_dt_spec LED2 = GPIO_DT_SPEC_GET(DT_NODELABEL(led2), gpios);
-static const struct gpio_dt_spec LED3 = GPIO_DT_SPEC_GET(DT_NODELABEL(led3), gpios);
+static const struct gpio_dt_spec LED1 = GPIO_DT_SPEC_GET(DT_ALIAS(led_hb), gpios);
+static const struct gpio_dt_spec LED2 = GPIO_DT_SPEC_GET(DT_ALIAS(led_pw), gpios);
+static const struct gpio_dt_spec LED3 = GPIO_DT_SPEC_GET(DT_ALIAS(led_cn), gpios);
 #ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160_NS
-static const struct gpio_dt_spec WAKE_IN = GPIO_DT_SPEC_GET(DT_NODELABEL(button0), gpios);
+static const struct gpio_dt_spec WAKE_IN = GPIO_DT_SPEC_GET(DT_ALIAS(wake_in), gpios);
 #endif
 /**********/
 
