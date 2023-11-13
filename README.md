@@ -44,7 +44,7 @@ target
 
 board
 
-- scm-ltem1nrf_nrf9160ns (default)
+- scm-ltem1nrf_nrf9160_ns (default)
 - nrf9160dk_nrf9160_ns
 - thingy91_nrf9160_ns
 
