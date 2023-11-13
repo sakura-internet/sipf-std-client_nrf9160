@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <net/net_ip.h>
-#include <net/socket.h>
-#include <net/tls_credentials.h>
-#include <sys/base64.h>
-#include <logging/log.h>
+#include <zephyr/net/net_ip.h>
+#include <zephyr/net/socket.h>
+#include <zephyr/net/tls_credentials.h>
+#include <zephyr/sys/base64.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(sipf);
 

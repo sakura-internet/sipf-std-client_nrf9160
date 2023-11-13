@@ -1,4 +1,4 @@
-identifier: scm-ltem1nrf_nrf9160ns
+identifier: scm-ltem1nrf_nrf9160_ns
 name: SCM-LTEM1NRF-NRF9160-Non-Secure
 type: mcu
 arch: arm
@@ -7,8 +7,14 @@ toolchain:
   - xtools
   - zephyr
 ram: 128
-flash: 256
+flash: 192
 supported:
+  - arduino_gpio
+  - arduino_i2c
+  - arduino_serial
+  - arduino_spi
   - i2c
   - pwm
   - watchdog
+  - netif:modem
+  - gpio

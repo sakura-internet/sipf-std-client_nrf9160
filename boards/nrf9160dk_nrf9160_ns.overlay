@@ -1,0 +1,8 @@
+/ {
+	aliases {
+		led-hb = &led0;
+		led-pw = &led1;
+		led-cn = &led2;
+		wake-in = &button0;
+	};
+};

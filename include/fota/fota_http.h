@@ -7,7 +7,7 @@
 #define FOTA_HTTP_H
 
 #include <dfu/dfu_target_mcuboot.h>
-#include <dfu/mcuboot.h>
+#include <zephyr/dfu/mcuboot.h>
 #include <net/fota_download.h>
 
 #define FOTA_BUFF_SZ (512)

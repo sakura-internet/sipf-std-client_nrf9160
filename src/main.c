@@ -6,21 +6,21 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
-#include <modem/at_cmd.h>
-#include <modem/at_notif.h>
+#include <nrf_modem_at.h>
+#include <modem/at_monitor.h>
 #include <modem/lte_lc.h>
 #include <modem/modem_info.h>
 #include <modem/modem_key_mgmt.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/pdn.h>
-#include <net/socket.h>
-#include <net/tls_credentials.h>
-#include <logging/log.h>
+#include <zephyr/net/socket.h>
+#include <zephyr/net/tls_credentials.h>
+#include <zephyr/logging/log.h>
 
-#include <drivers/gpio.h>
-#include <power/reboot.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/reboot.h>
 
 #include "cmd.h"
 #include "fota/fota_http.h"
@@ -37,19 +37,12 @@ LOG_MODULE_REGISTER(sipf, CONFIG_SIPF_LOG_LEVEL);
 /** peripheral **/
 #define LED_HEARTBEAT_MS (500)
 
-#define LED_PORT DT_GPIO_LABEL(DT_ALIAS(led1), gpios)
-#define LED1_PIN (DT_GPIO_PIN(DT_ALIAS(led1), gpios))
-#define LED1_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led1), gpios))
-
-#define LED2_PIN (DT_GPIO_PIN(DT_ALIAS(led2), gpios))
-#define LED2_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led2), gpios))
-
-#define LED3_PIN (DT_GPIO_PIN(DT_ALIAS(led3), gpios))
-#define LED3_FLAGS (GPIO_OUTPUT_ACTIVE | DT_GPIO_FLAGS(DT_ALIAS(led3), gpios))
-
-#define WAKE_IN_PORT DT_GPIO_LABEL(DT_ALIAS(sw2), gpios)
-#define WAKE_IN_PIN (DT_GPIO_PIN(DT_ALIAS(sw2), gpios))
-#define WAKE_IN_FLAGS (GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw2), gpios))
+static const struct gpio_dt_spec LED1 = GPIO_DT_SPEC_GET(DT_ALIAS(led_hb), gpios);
+static const struct gpio_dt_spec LED2 = GPIO_DT_SPEC_GET(DT_ALIAS(led_pw), gpios);
+static const struct gpio_dt_spec LED3 = GPIO_DT_SPEC_GET(DT_ALIAS(led_cn), gpios);
+#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160_NS
+static const struct gpio_dt_spec WAKE_IN = GPIO_DT_SPEC_GET(DT_ALIAS(wake_in), gpios);
+#endif
 /**********/
 
 /** TLS **/
@@ -72,24 +65,10 @@ static char password[SZ_PASSWORD];
 /* Initialize AT communications */
 int at_comms_init(void)
 {
-    int err;
-
-    err = at_cmd_init();
-    if (err) {
-        LOG_ERR("Failed to initialize AT commands, err %d", err);
-        return err;
-    }
-
-    err = at_notif_init();
-    if (err) {
-        LOG_ERR("Failed to initialize AT notifications, err %d", err);
-        return err;
-    }
-
     return 0;
 }
 
-#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160NS
+#ifdef CONFIG_BOARD_SCM_LTEM1NRF_NRF9160_NS
 static struct gpio_callback gpio_cb;
 
 void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32_t pins)
@@ -101,19 +80,13 @@ void wake_in_assert(const struct device *gpiob, struct gpio_callback *cb, uint32
 
 static int wake_in_init(void)
 {
-    const struct device *dev;
-    dev = device_get_binding(WAKE_IN_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
     int ret;
-    ret = gpio_pin_configure(dev, WAKE_IN_PIN, WAKE_IN_FLAGS);
+    ret = gpio_pin_configure_dt(&WAKE_IN, GPIO_INPUT);
     if (ret == 0) {
-        gpio_init_callback(&gpio_cb, wake_in_assert, BIT(WAKE_IN_PIN));
-        ret = gpio_add_callback(dev, &gpio_cb);
+        gpio_init_callback(&gpio_cb, wake_in_assert, BIT(WAKE_IN.pin));
+        ret = gpio_add_callback(WAKE_IN.port, &gpio_cb);
         if (ret == 0) {
-            gpio_pin_interrupt_configure(dev, WAKE_IN_PIN, GPIO_INT_EDGE_TO_ACTIVE);
+            gpio_pin_interrupt_configure_dt(&WAKE_IN, GPIO_INT_EDGE_TO_ACTIVE);
         }
     }
 
@@ -129,67 +102,82 @@ static int wake_in_init(void)
 /** LED **/
 static int led_init(void)
 {
-    const struct device *dev;
-
-    dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
     int ret;
+
     /* Initialize LED1  */
-    ret = gpio_pin_configure(dev, LED1_PIN, LED1_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED1_PIN, ret);
-    ret = gpio_pin_set(dev, LED1_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED1_PIN, ret);
+	if (!gpio_is_ready_dt(&LED1)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED1, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 1, ret);
+    ret = gpio_pin_set_dt(&LED1, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 1, ret);
 
     /* Initialize LED2  */
-    ret = gpio_pin_configure(dev, LED2_PIN, LED2_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED2_PIN, ret);
-    ret = gpio_pin_set(dev, LED2_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED2_PIN, ret);
+	if (!gpio_is_ready_dt(&LED2)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED2, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 2, ret);
+    ret = gpio_pin_set_dt(&LED2, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 2, ret);
 
     /* Initialize LED3  */
-    ret = gpio_pin_configure(dev, LED3_PIN, LED3_FLAGS);
-    LOG_DBG("gpio_pin_configure(%d): %d", LED3_PIN, ret);
-    ret = gpio_pin_set(dev, LED3_PIN, 0);
-    LOG_DBG("gpio_pin_set(%d): %d", LED3_PIN, ret);
+	if (!gpio_is_ready_dt(&LED3)) {
+		LOG_ERR("LED1 gpio is not ready");
+	}
+    ret = gpio_pin_configure_dt(&LED3, GPIO_OUTPUT_ACTIVE);
+    LOG_DBG("gpio_pin_configure(%d): %d", 3, ret);
+    ret = gpio_pin_set_dt(&LED3, 0x00);
+    LOG_DBG("gpio_pin_set(%d): %d", 3, ret);
+
     return 0;
 }
 
 static int led_on(gpio_pin_t pin)
 {
-    const struct device *dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
+    switch(pin) {
+        case 1:
+            gpio_pin_set_dt(&LED1, 0x01);
+            break;
+        case 2:
+            gpio_pin_set_dt(&LED2, 0x01);
+            break;
+        case 3:
+            gpio_pin_set_dt(&LED3, 0x01);
+            break;
+        default:
+            LOG_ERR("Invald LED %d", pin);
+            return 1;
+            break;
     }
-    gpio_pin_set(dev, pin, 1);
     return 0;
 }
 
 static int led_off(gpio_pin_t pin)
 {
-    const struct device *dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
+    switch(pin) {
+        case 1:
+            gpio_pin_set_dt(&LED1, 0x00);
+            break;
+        case 2:
+            gpio_pin_set_dt(&LED2, 0x00);
+            break;
+        case 3:
+            gpio_pin_set_dt(&LED3, 0x00);
+            break;
+        break;
+            LOG_ERR("Invald LED %d", pin);
+            return 1;
+            break;
     }
-    gpio_pin_set(dev, pin, 0);
     return 0;
 }
 
 static int led1_toggle(void)
 {
-    const struct device *dev;
     static int val = 0;
-
-    dev = device_get_binding(LED_PORT);
-    if (dev == 0) {
-        LOG_ERR("Nordic nRF GPIO driver was not found!");
-        return 1;
-    }
-    gpio_pin_set(dev, LED1_PIN, val);
+    gpio_pin_set_dt(&LED1, val);
     val = (val == 0) ? 1 : 0;
     return 0;
 }
@@ -203,9 +191,8 @@ static int cert_provision(void)
 {
     int err;
     bool exists;
-    uint8_t unused;
 
-    err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists, &unused);
+    err = modem_key_mgmt_exists(TLS_SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists);
     if (err) {
         LOG_ERR("Failed to check for certificates err %d", err);
         return err;
@@ -265,10 +252,9 @@ static void lte_handler(const struct lte_lc_evt *const evt)
 
 static int init_modem_and_lte(void)
 {
-    static char at_ret[128];
     int err = 0;
 
-    err = nrf_modem_lib_init(NORMAL_MODE);
+    err = nrf_modem_lib_init();
     if (err) {
         LOG_ERR("Failed to initialize modem library!");
         return err;
@@ -295,14 +281,14 @@ static int init_modem_and_lte(void)
     }
     LOG_DBG("Setting system mode OK");
 
-    err = at_cmd_write("AT\%XMAGPIO=1,0,0,1,1,1574,1577", NULL, 0, NULL);
+    err = nrf_modem_at_printf("AT%%XMAGPIO=1,0,0,1,1,1574,1577");
     if (err != 0) {
         LOG_ERR("Failed to set XMAGPIO, err %d", err);
         return err;
     }
     LOG_DBG("Configure MAGPIO OK");
 
-    err = at_cmd_write("AT\%XCOEX0=1,1,1565,1586", NULL, 0, NULL);
+    err = nrf_modem_at_printf("AT%%XCOEX0=1,1,1565,1586");
     if (err != 0) {
         LOG_ERR("Failed to set XCOEX0, err %d", err);
         return err;
@@ -311,11 +297,6 @@ static int init_modem_and_lte(void)
 
     /* PDN */
     uint8_t cid;
-    err = pdn_init();
-    if (err != 0) {
-        LOG_ERR("Failed to pdn_init()");
-        return err;
-    }
     err = pdn_ctx_create(&cid, NULL);
     if (err != 0) {
         LOG_ERR("Failed to pdn_ctx_create(), err %d", err);
@@ -330,7 +311,6 @@ static int init_modem_and_lte(void)
     LOG_DBG("Setting APN OK");
 
     /* CONNECT */
-    enum at_cmd_state at_state;
     for (int i = 0; i < REGISTER_TRY; i++) {
         LOG_DBG("Initialize LTE");
         err = lte_lc_init();
@@ -367,20 +347,19 @@ static int init_modem_and_lte(void)
             }
 
             // ICCIDの取得
-            err = at_cmd_write("AT%XICCID", at_ret, sizeof(at_ret), &at_state);
-            if (err) {
-                LOG_ERR("Failed to get ICCID, err %d", err);
-                return err;
-            }
-            if (at_state == AT_CMD_OK) {
-                char *iccid_top = &at_ret[9]; // ICCIDの先頭
-                for (int i = 0; i < 20; i++) {
-                    if (iccid_top[i] == 'F') {
-                        iccid_top[i] = 0x00;
+            struct modem_param_info mpi;
+
+            err = modem_info_init();
+            if (err == 0) {
+                if (modem_info_params_init(&mpi) == 0) {
+                    if (modem_info_params_get(&mpi) == 0) {
+                        UartBrokerPrint("ICCID: %s\r\n", mpi.sim.iccid.value_string);
                     }
                 }
-                UartBrokerPrint("ICCID: %s\r\n", iccid_top);
+            } else {
+                LOG_ERR("modem_info_init() failed, err: %d", err);
             }
+
             return 0;
         } else {
             //
@@ -393,7 +372,7 @@ static int init_modem_and_lte(void)
 }
 /**********/
 
-void main(void)
+int main(void)
 {
     int err;
 
@@ -403,7 +382,7 @@ void main(void)
     RegistersReset();
 
     // UartBrokerの初期化(以降、Debug系の出力も可能)
-    uart_dev = device_get_binding(UART_LABEL);
+    uart_dev =  DEVICE_DT_GET(DT_NODELABEL(uart0));
     UartBrokerInit(uart_dev);
     UartBrokerPrint("*** SIPF Client(Type%02x) v.%d.%d.%d ***\r\n", *REG_CMN_FW_TYPE, *REG_CMN_VER_MJR, *REG_CMN_VER_MNR, *REG_CMN_VER_REL);
 #ifdef CONFIG_LTE_LOCK_PLMN
@@ -417,7 +396,7 @@ void main(void)
 #endif
     // LEDの初期化
     led_init();
-    led_on(LED2_PIN);
+    led_on(2);
 
     // WAKE_INの初期化
     wake_in_init();
@@ -425,8 +404,9 @@ void main(void)
     //モデムの初期化&LTE接続
     err = init_modem_and_lte();
     if (err) {
-        led_off(LED2_PIN);
-        return;
+        LOG_ERR("init_modem_and_lte() failed... err: %d", err);
+        led_off(2);
+        return -1;
     }
 
     // GNSSの初期化
@@ -434,8 +414,12 @@ void main(void)
         UartBrokerPuts("Failed to initialize GNSS peripheral\r\n");
     }
 
+#if CONFIG_DFU_TARGET_MCUBOOT
     // LTEつながるならOKなFWよね
     boot_write_img_confirmed();
+#else
+    #error "CONFIG_DFU_TARGET_MCUBOOT is disabled..."
+#endif
 
     // 認証モードをSIM認証にする
     uint8_t b, prev_auth_mode = 0x01;
@@ -460,7 +444,7 @@ void main(void)
     }
 
     UartBrokerPuts("+++ Ready +++\r\n");
-    led_on(LED3_PIN);
+    led_on(3);
     ms_timeout = k_uptime_get() + LED_HEARTBEAT_MS;
     for (;;) {
         while (UartBrokerGetByte(&b) == 0) {
@@ -494,9 +478,6 @@ void main(void)
             }
         }
         prev_auth_mode = *REG_00_MODE;
-
-        // GNSSイベントの処理
-        gnss_poll();
 
         k_sleep(K_MSEC(1));
     }
